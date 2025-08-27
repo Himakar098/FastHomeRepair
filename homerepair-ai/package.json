@@ -1,0 +1,46 @@
+{
+  "name": "homerepair-ai",
+  "version": "1.0.0",
+  "description": "AI-powered home repair assistant",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm start",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "jest tests/api.tests.js",
+    "test:load": "node tests/load-test.js",
+    "seed:products": "node scripts/seed-products.js",
+    "seed:professionals": "node scripts/seed-professionals.js",
+    "setup:search": "node scripts/setup-search-index.js"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "@azure/cosmos": "^4.4.1",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {},
+  "keywords": ["ai", "home-repair", "azure", "nextjs"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "next/core-web-vitals"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
