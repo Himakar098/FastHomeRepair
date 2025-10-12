@@ -7,7 +7,8 @@ const database = cosmosClient.database('homerepair-db');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE
+  baseURL: `${process.env.OPENAI_API_BASE}/openai/deployments/${process.env.OPENAI_DEPLOYMENT_NAME}`,
+  defaultQuery: { 'api-version': process.env.OPENAI_API_VERSION }
 });
 
 module.exports = async function (context, req) {

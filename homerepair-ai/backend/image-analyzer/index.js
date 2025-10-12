@@ -1,16 +1,3 @@
-const { app } = require('@azure/functions');
-
-app.http('image-analyzer', {
-    methods: ['GET', 'POST'],
-    authLevel: 'anonymous',
-    handler: async (request, context) => {
-        context.log(`Http function processed request for url "${request.url}"`);
-
-        const name = request.query.get('name') || await request.text() || 'world';
-
-        return { body: `Hello, ${name}!` };
-    }
-});
 const { ComputerVisionClient } = require('@azure/cognitiveservices-computervision');
 const { ApiKeyCredentials } = require('@azure/ms-rest-azure-js');
 const { BlobServiceClient } = require('@azure/storage-blob');
