@@ -5,10 +5,24 @@ const { v4: uuidv4 } = require('uuid');
 const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
 const database = cosmosClient.database('homerepair-db');
 
+const requiredOpenAIEnv = [
+  'OPENAI_API_KEY',
+  'OPENAI_API_BASE',
+  'OPENAI_DEPLOYMENT_NAME',
+  'OPENAI_API_VERSION'
+];
+
+for (const variable of requiredOpenAIEnv) {
+  if (!process.env[variable]) {
+    throw new Error(`Missing required environment variable: ${variable}`);
+  }
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: `${process.env.OPENAI_API_BASE}/openai/deployments/${process.env.OPENAI_DEPLOYMENT_NAME}`,
-  defaultQuery: { 'api-version': process.env.OPENAI_API_VERSION }
+  defaultQuery: { 'api-version': process.env.OPENAI_API_VERSION },
+  defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
 });
 
 module.exports = async function (context, req) {

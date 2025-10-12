@@ -77,8 +77,8 @@ async function searchProducts(problem, category, maxPrice, location) {
   
   const searchResults = await searchClient.search(problem, searchOptions);
   const results = [];
-  
-  for await (const result of searchResults.results) {
+
+  for await (const result of searchResults) {
     results.push({
       id: result.document.id,
       name: result.document.name,
