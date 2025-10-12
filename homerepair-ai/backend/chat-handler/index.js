@@ -1,29 +1,42 @@
 const { CosmosClient } = require('@azure/cosmos');
 const { OpenAI } = require('openai');
 const { v4: uuidv4 } = require('uuid');
-
 const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
 const database = cosmosClient.database('homerepair-db');
-
-const requiredOpenAIEnv = [
-  'OPENAI_API_KEY',
-  'OPENAI_API_BASE',
-  'OPENAI_DEPLOYMENT_NAME',
-  'OPENAI_API_VERSION'
-];
-
-for (const variable of requiredOpenAIEnv) {
-  if (!process.env[variable]) {
-    throw new Error(`Missing required environment variable: ${variable}`);
+let cachedOpenAIClient;
+function createOpenAIClient() {
+  if (cachedOpenAIClient) {
+    return cachedOpenAIClient;
   }
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing required environment variable: OPENAI_API_KEY');
+  }
+  const apiBase = process.env.OPENAI_API_BASE;
+  const deploymentName = process.env.OPENAI_DEPLOYMENT_NAME;
+  const defaultModel = process.env.OPENAI_MODEL || 'gpt-4';
+  const isAzure = apiBase && apiBase.includes('.openai.azure.com');
+  const clientOptions = {
+    apiKey
+  };
+  if (isAzure) {
+    if (!deploymentName) {
+      throw new Error('Missing required environment variable: OPENAI_DEPLOYMENT_NAME');
+    }
+    const trimmedBase = apiBase.replace(/\/$/, '');
+    const apiVersion = process.env.OPENAI_API_VERSION || '2024-02-15-preview';
+    clientOptions.baseURL = `${trimmedBase}/openai/deployments/${deploymentName}`;
+    clientOptions.defaultQuery = { 'api-version': apiVersion };
+    clientOptions.defaultHeaders = { 'api-key': apiKey };
+  } else if (apiBase) {
+    clientOptions.baseURL = apiBase;
+  }
+  cachedOpenAIClient = {
+    client: new OpenAI(clientOptions),
+    model: isAzure ? deploymentName : defaultModel
+  };
+  return cachedOpenAIClient;
 }
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: `${process.env.OPENAI_API_BASE}/openai/deployments/${process.env.OPENAI_DEPLOYMENT_NAME}`,
-  defaultQuery: { 'api-version': process.env.OPENAI_API_VERSION },
-  defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
-});
 
 module.exports = async function (context, req) {
   context.log('Chat handler triggered');
@@ -83,9 +96,10 @@ module.exports = async function (context, req) {
       ...conversation.messages.slice(-5) // Last 5 messages for context
     ];
 
+    const { client: openaiClient, model } = createOpenAIClient();
     // Call OpenAI
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const completion = await openaiClient.chat.completions.create({
+      model,
       messages: messages,
       max_tokens: 1000,
       temperature: 0.7
