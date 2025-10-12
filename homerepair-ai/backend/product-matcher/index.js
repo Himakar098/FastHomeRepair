@@ -1,38 +1,84 @@
 const { SearchClient, AzureKeyCredential } = require('@azure/search-documents');
 const { CosmosClient } = require('@azure/cosmos');
 
-const searchClient = new SearchClient(
-  process.env.SEARCH_ENDPOINT,
-  'products-index',
-  new AzureKeyCredential(process.env.SEARCH_API_KEY)
-);
+const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': allowedOrigin,
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+};
 
-const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
-const database = cosmosClient.database('homerepair-db');
+const missingSearchEnv = ['SEARCH_ENDPOINT', 'SEARCH_API_KEY'].filter(name => !process.env[name]);
+let searchClient = null;
+if (missingSearchEnv.length === 0) {
+  searchClient = new SearchClient(
+    process.env.SEARCH_ENDPOINT,
+    'products-index',
+    new AzureKeyCredential(process.env.SEARCH_API_KEY)
+  );
+}
+
+let database = null;
+if (process.env.COSMOS_CONNECTION_STRING) {
+  const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
+  database = cosmosClient.database('homerepair-db');
+}
 
 module.exports = async function (context, req) {
+  if (req.method === 'OPTIONS') {
+    context.res = {
+      status: 204,
+      headers: corsHeaders
+    };
+    return;
+  }
+
   try {
+    if (missingSearchEnv.length > 0) {
+      const details = `Missing required environment variables: ${missingSearchEnv.join(', ')}`;
+      context.log.error(details);
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Product search not configured', details }
+      };
+      return;
+    }
+
+    if (!database) {
+      const details = 'Missing required environment variable: COSMOS_CONNECTION_STRING';
+      context.log.error(details);
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Product search not configured', details }
+      };
+      return;
+    }
+
     const { problem, category, maxPrice, location = 'Perth' } = req.body;
     
     if (!problem) {
       context.res = {
         status: 400,
+        headers: corsHeaders,
         body: { error: 'Problem description required' }
       };
       return;
     }
 
     // Search for relevant products
-    const searchResults = await searchProducts(problem, category, maxPrice, location);
+    const searchResults = await searchProducts(searchClient, problem, category, maxPrice, location);
     
     // Get detailed product information from Cosmos DB
-    const detailedProducts = await getProductDetails(searchResults);
+    const detailedProducts = await getProductDetails(database, searchResults);
     
     // Find relevant professionals
-    const professionals = await findProfessionals(problem, location);
+    const professionals = await findProfessionals(database, problem, location);
 
     context.res = {
       status: 200,
+      headers: corsHeaders,
       body: {
         products: detailedProducts,
         professionals,
@@ -45,12 +91,13 @@ module.exports = async function (context, req) {
     context.log.error('Product matching error:', error);
     context.res = {
       status: 500,
+      headers: corsHeaders,
       body: { error: 'Product search failed' }
     };
   }
 };
 
-async function searchProducts(problem, category, maxPrice, location) {
+async function searchProducts(searchClient, problem, category, maxPrice, location) {
   const searchOptions = {
     searchFields: ['name', 'description', 'problems'],
     select: ['id', 'name', 'price', 'supplier', 'category'],
@@ -91,7 +138,7 @@ async function searchProducts(problem, category, maxPrice, location) {
   return results;
 }
 
-async function getProductDetails(searchResults) {
+async function getProductDetails(database, searchResults) {
   const container = database.container('products');
   const detailedProducts = [];
   
@@ -111,7 +158,7 @@ async function getProductDetails(searchResults) {
   return detailedProducts;
 }
 
-async function findProfessionals(problem, location) {
+async function findProfessionals(database, problem, location) {
   const container = database.container('professionals');
   
   // Simple query - in production, you'd use more sophisticated matching

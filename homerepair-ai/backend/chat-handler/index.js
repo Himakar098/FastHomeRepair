@@ -1,53 +1,80 @@
 const { CosmosClient } = require('@azure/cosmos');
 const { OpenAI } = require('openai');
 const { v4: uuidv4 } = require('uuid');
-const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
-const database = cosmosClient.database('homerepair-db');
-let cachedOpenAIClient;
-function createOpenAIClient() {
-  if (cachedOpenAIClient) {
-    return cachedOpenAIClient;
-  }
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Missing required environment variable: OPENAI_API_KEY');
-  }
-  const apiBase = process.env.OPENAI_API_BASE;
-  const deploymentName = process.env.OPENAI_DEPLOYMENT_NAME;
-  const defaultModel = process.env.OPENAI_MODEL || 'gpt-4';
-  const isAzure = apiBase && apiBase.includes('.openai.azure.com');
-  const clientOptions = {
-    apiKey
-  };
-  if (isAzure) {
-    if (!deploymentName) {
-      throw new Error('Missing required environment variable: OPENAI_DEPLOYMENT_NAME');
-    }
-    const trimmedBase = apiBase.replace(/\/$/, '');
-    const apiVersion = process.env.OPENAI_API_VERSION || '2024-02-15-preview';
-    clientOptions.baseURL = `${trimmedBase}/openai/deployments/${deploymentName}`;
-    clientOptions.defaultQuery = { 'api-version': apiVersion };
-    clientOptions.defaultHeaders = { 'api-key': apiKey };
-  } else if (apiBase) {
-    clientOptions.baseURL = apiBase;
-  }
-  cachedOpenAIClient = {
-    client: new OpenAI(clientOptions),
-    model: isAzure ? deploymentName : defaultModel
-  };
-  return cachedOpenAIClient;
+
+const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': allowedOrigin,
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+};
+
+const requiredOpenAIEnv = [
+  'OPENAI_API_KEY',
+  'OPENAI_API_BASE',
+  'OPENAI_DEPLOYMENT_NAME',
+  'OPENAI_API_VERSION'
+];
+
+const missingOpenAIEnv = requiredOpenAIEnv.filter(variable => !process.env[variable]);
+
+let openai = null;
+if (missingOpenAIEnv.length === 0) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: `${process.env.OPENAI_API_BASE}/openai/deployments/${process.env.OPENAI_DEPLOYMENT_NAME}`,
+    defaultQuery: { 'api-version': process.env.OPENAI_API_VERSION },
+    defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
+  });
+}
+
+let database = null;
+if (process.env.COSMOS_CONNECTION_STRING) {
+  const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
+  database = cosmosClient.database('homerepair-db');
 }
 
 module.exports = async function (context, req) {
+  if (req.method === 'OPTIONS') {
+    context.res = {
+      status: 204,
+      headers: corsHeaders
+    };
+    return;
+  }
+
   context.log('Chat handler triggered');
-  
+
   try {
+    if (missingOpenAIEnv.length > 0) {
+      const details = `Missing required environment variables: ${missingOpenAIEnv.join(', ')}`;
+      context.log.error(details);
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Chat service not configured', details }
+      };
+      return;
+    }
+
+    if (!database) {
+      const details = 'Missing required environment variable: COSMOS_CONNECTION_STRING';
+      context.log.error(details);
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Chat service not configured', details }
+      };
+      return;
+    }
+
     const { message, conversationId, userId, images } = req.body;
-    
+
     // Validate input
     if (!message || !userId) {
       context.res = {
         status: 400,
+        headers: corsHeaders,
         body: { error: 'Message and userId are required' }
       };
       return;
@@ -55,7 +82,7 @@ module.exports = async function (context, req) {
 
     // Get or create conversation
     const convId = conversationId || uuidv4();
-    const conversation = await getOrCreateConversation(convId, userId);
+    const conversation = await getOrCreateConversation(database, convId, userId);
 
     // Add user message to conversation
     const userMessage = {
@@ -117,13 +144,14 @@ module.exports = async function (context, req) {
     conversation.messages.push(assistantMessage);
 
     // Save conversation
-    await saveConversation(conversation);
+    await saveConversation(database, conversation);
 
     // Extract structured data from response (products, professionals, etc.)
     const structuredResponse = await parseAIResponse(aiResponse);
 
     context.res = {
       status: 200,
+      headers: corsHeaders,
       body: {
         response: aiResponse,
         conversationId: convId,
@@ -135,12 +163,13 @@ module.exports = async function (context, req) {
     context.log.error('Chat handler error:', error);
     context.res = {
       status: 500,
+      headers: corsHeaders,
       body: { error: 'Internal server error' }
     };
   }
 };
 
-async function getOrCreateConversation(conversationId, userId) {
+async function getOrCreateConversation(database, conversationId, userId) {
   const container = database.container('conversations');
   
   try {
@@ -158,7 +187,7 @@ async function getOrCreateConversation(conversationId, userId) {
   }
 }
 
-async function saveConversation(conversation) {
+async function saveConversation(database, conversation) {
   const container = database.container('conversations');
   conversation.updatedAt = new Date().toISOString();
   await container.items.upsert(conversation);

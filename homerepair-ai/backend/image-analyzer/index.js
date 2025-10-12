@@ -2,19 +2,64 @@ const { ComputerVisionClient } = require('@azure/cognitiveservices-computervisio
 const { ApiKeyCredentials } = require('@azure/ms-rest-azure-js');
 const { BlobServiceClient } = require('@azure/storage-blob');
 
-const computerVisionClient = new ComputerVisionClient(
-  new ApiKeyCredentials({ 
-    inHeader: { 'Ocp-Apim-Subscription-Key': process.env.COMPUTER_VISION_KEY } 
-  }), 
-  process.env.COMPUTER_VISION_ENDPOINT
-);
+const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': allowedOrigin,
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+};
 
-const blobServiceClient = BlobServiceClient.fromConnectionString(
-  process.env.BLOB_STORAGE_CONNECTION_STRING
+const missingVisionEnv = ['COMPUTER_VISION_KEY', 'COMPUTER_VISION_ENDPOINT'].filter(
+  name => !process.env[name]
 );
+let computerVisionClient = null;
+if (missingVisionEnv.length === 0) {
+  computerVisionClient = new ComputerVisionClient(
+    new ApiKeyCredentials({
+      inHeader: { 'Ocp-Apim-Subscription-Key': process.env.COMPUTER_VISION_KEY }
+    }),
+    process.env.COMPUTER_VISION_ENDPOINT
+  );
+}
+
+let blobServiceClient = null;
+if (process.env.BLOB_STORAGE_CONNECTION_STRING) {
+  blobServiceClient = BlobServiceClient.fromConnectionString(
+    process.env.BLOB_STORAGE_CONNECTION_STRING
+  );
+}
 
 module.exports = async function (context, req) {
+  if (req.method === 'OPTIONS') {
+    context.res = {
+      status: 204,
+      headers: corsHeaders
+    };
+    return;
+  }
+
   try {
+    if (missingVisionEnv.length > 0) {
+      const details = `Missing required environment variables: ${missingVisionEnv.join(', ')}`;
+      context.log.error(details);
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Image analysis not configured', details }
+      };
+      return;
+    }
+
+    if (!blobServiceClient) {
+      const details = 'Missing required environment variable: BLOB_STORAGE_CONNECTION_STRING';
+      context.log.error(details);
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Image analysis not configured', details }
+      };
+      return;
+    }
     const { imageData, imageUrl, problemContext } = req.body;
     
     let analyzableUrl = imageUrl;
@@ -27,6 +72,7 @@ module.exports = async function (context, req) {
     if (!analyzableUrl) {
       context.res = {
         status: 400,
+        headers: corsHeaders,
         body: { error: 'Image URL or image data required' }
       };
       return;
@@ -51,6 +97,7 @@ module.exports = async function (context, req) {
 
     context.res = {
       status: 200,
+      headers: corsHeaders,
       body: {
         imageUrl: analyzableUrl,
         analysis: repairAnalysis,
@@ -62,6 +109,7 @@ module.exports = async function (context, req) {
     context.log.error('Image analysis error:', error);
     context.res = {
       status: 500,
+      headers: corsHeaders,
       body: { error: 'Image analysis failed' }
     };
   }
