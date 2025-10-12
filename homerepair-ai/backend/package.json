@@ -1,15 +1,16 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "src/functions/*.js",
   "scripts": {
     "start": "func start",
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
     "@azure/cognitiveservices-computervision": "^8.2.0",
+    "@azure/ms-rest-azure-js": "^2.1.2",
     "@azure/cosmos": "^4.4.1",
     "@azure/functions": "^4.0.0",
+    "@azure/search-documents": "^12.3.0",
     "@azure/storage-blob": "^12.27.0",
     "axios": "^1.10.0",
     "joi": "^17.13.3",
