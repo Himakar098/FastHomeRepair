@@ -6,7 +6,9 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
+    "@azure-rest/ai-vision-image-analysis": "^1.0.0-beta.3",
     "@azure/cognitiveservices-computervision": "^8.2.0",
+    "@azure/core-auth": "^1.10.1",
     "@azure/cosmos": "^4.4.1",
     "@azure/functions": "^4.0.0",
     "@azure/ms-rest-azure-js": "^2.1.0",

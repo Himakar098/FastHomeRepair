@@ -14,7 +14,7 @@ const ChatInterface = ({ user }) => {
   const messagesEndRef = useRef(null);
 
   // Next.js environment variable (different naming convention)
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7071/api';
+  const API_BASE = 'http://localhost:7071/api';
 
   useEffect(() => {
     scrollToBottom();

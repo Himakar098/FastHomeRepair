@@ -12,7 +12,7 @@ const ChatInterface = ({ user }) => {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:7071/api';
+  const API_BASE = 'http://localhost:7071/api';
 
   useEffect(() => {
     scrollToBottom();
