@@ -58,3 +58,6 @@ npm test
 ```
 
 Before running the tests, update the API base URL in `tests/api.tests.js` if you need to point to a different backend endpoint.
+
+---
+Idea: its based on house. if one want to do any repaires, or any damages in the house, users can use the chat function and or along with uploading the images, they will get the rough idea on how to fix it, what might have caused the trouble, where can they find the relavent products and how much they cost, for example -- a tenant want to clean the stains in the oven and also repair the damaged bench top, when he ask and or upload images, the app will provide the chemicals that can be used to repair and clean from bunnings and will cost 50$. Or if the problem is sever, it will provide the professionals links and how much they might charge, or they should report it to the landlord or agents for the repairs.
