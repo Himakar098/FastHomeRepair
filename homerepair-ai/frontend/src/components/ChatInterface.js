@@ -12,8 +12,7 @@ const ChatInterface = ({ user }) => {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  const API_BASE = 'http://localhost:7071/api';
-
+  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:7071') + '/api';
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -110,7 +109,7 @@ const ChatInterface = ({ user }) => {
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="welcome-message">
-            <h2>Welcome to Perth Home Repair AI!</h2>
+            <h2>Welcome to Home Repair AI!</h2>
             <p>Describe your home repair problem or upload photos, and I'll help you find the best solution.</p>
             <div className="example-questions">
               <h3>Try asking:</h3>
