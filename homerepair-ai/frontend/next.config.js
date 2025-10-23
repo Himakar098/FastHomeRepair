@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable static HTML export so the app can be hosted on Azure Static Web Apps.
+  output: 'export',
+
   // Only applies in development:
   allowedDevOrigins: [
     'http://localhost:3000',

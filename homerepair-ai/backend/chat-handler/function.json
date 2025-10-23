@@ -2,16 +2,13 @@
   "scriptFile": "index.js",
   "bindings": [
     {
-      "authLevel": "function",
+      "authLevel": "anonymous",
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["post"]
+      "methods": ["post", "options"],
+      "route": "chat-handler"
     },
-    {
-      "type": "http",
-      "direction": "out",
-      "name": "res"
-    }
+    { "type": "http", "direction": "out", "name": "res" }
   ]
 }
