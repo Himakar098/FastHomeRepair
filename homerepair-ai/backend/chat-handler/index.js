@@ -3,6 +3,7 @@ const { CosmosClient } = require('@azure/cosmos');
 const { OpenAI } = require('openai');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
+const { validateJwt } = require('../common/auth'); // <— NEW (see auth.js below)
 
 // ---------- CORS ----------
 const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
@@ -41,7 +42,10 @@ if (process.env.COSMOS_CONNECTION_STRING) {
 // product-matcher endpoint
 const PRODUCT_MATCHER_URL = process.env.PRODUCT_MATCHER_URL || 'http://127.0.0.1:7071/api/product-matcher';
 
-// ---------- Location Normaliser (reuse same approach) ----------
+// image-analyzer endpoint (NEW)
+const IMAGE_ANALYZER_URL = process.env.IMAGE_ANALYZER_URL || 'http://127.0.0.1:7071/api/image-analyzer';
+
+// ---------- Location helpers ----------
 function mapStateAbbrev(s) {
   const t = String(s || '').toUpperCase();
   const map = {
@@ -118,7 +122,6 @@ async function getProductSuggestions(problem, category, maxPrice, locObj) {
       problem: problem || '',
       category: category || null,
       maxPrice: maxPrice || null,
-      // pass through normalised location fields
       location: locObj?.raw || null,
       state: locObj?.state || null,
       postcode: locObj?.postcode || null
@@ -172,7 +175,6 @@ ${proBullets.length ? proBullets.join('\n') : '• (no matches found)'}
 Supplier hint: ${supplierHint}`;
 }
 
-// Extract <structured_json>
 function extractStructuredJSON(text) {
   if (!text) return null;
   const m = text.match(/<structured_json>([\s\S]*?)<\/structured_json>/i);
@@ -187,6 +189,15 @@ function extractCostEstimate(text) {
 function extractDifficulty(text) {
   const m = text.match(/\b(Easy|Medium|Hard|Professional Required)\b/i);
   return m ? m[0] : 'Unknown';
+}
+
+// ---------- Security/validation helpers ----------
+function isSafeBase64Image(dataUrl) {
+  if (typeof dataUrl !== 'string' || dataUrl.length > 10 * 1024 * 1024) return false; // ~10MB max
+  if (!dataUrl.startsWith('data:image/')) return false;
+  // basic type allowlist
+  if (!/data:image\/(jpeg|jpg|png|webp);base64,/.test(dataUrl)) return false;
+  return true;
 }
 
 // ---------- SYSTEM PROMPT ----------
@@ -250,6 +261,16 @@ module.exports = async function (context, req) {
   context.log('chat-handler triggered');
 
   try {
+    // ------ Auth (RECOMMENDED): require Bearer JWT ------
+    const authz = req.headers['authorization'] || req.headers['Authorization'] || '';
+    const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+    const authResult = await validateJwt(token).catch(() => null);
+    if (!authResult || !authResult.sub) {
+      context.res = { status: 401, headers: corsHeaders, body: { error: 'Unauthorized' } };
+      return;
+    }
+    const userId = authResult.sub; // do not trust arbitrary userId from client
+
     if (missingOpenAIEnv.length > 0) {
       const details = `Missing required environment variables: ${missingOpenAIEnv.join(', ')}`;
       context.log.error(details);
@@ -263,12 +284,39 @@ module.exports = async function (context, req) {
       return;
     }
 
-    const { message, conversationId, userId, images, category, maxPrice } = req.body || {};
+    const { message, conversationId, images, category, maxPrice } = req.body || {};
     const locObj = normaliseLocation(req.body || {}); // handles location/state/postcode
 
-    if (!message || !userId) {
-      context.res = { status: 400, headers: corsHeaders, body: { error: 'Message and userId are required' } };
+    // basic validation
+    if (!message || typeof message !== 'string' || message.length > 5000) {
+      context.res = { status: 400, headers: corsHeaders, body: { error: 'Message is required and must be under 5000 chars' } };
       return;
+    }
+
+    // If images present, validate & pick first
+    let imageAnalysisSummary = null;
+    if (Array.isArray(images) && images.length > 0) {
+      const first = images[0];
+      const dataUrl = first?.dataUrl;
+      if (isSafeBase64Image(dataUrl)) {
+        try {
+          const { data } = await axios.post(
+            IMAGE_ANALYZER_URL,
+            { imageData: dataUrl, problemContext: message },
+            { timeout: 10000 }
+          );
+          // keep only minimal, non-sensitive subset
+          imageAnalysisSummary = {
+            usedFeatures: data?.usedFeatures || [],
+            description: data?.analysis?.description || null,
+            repairSuggestions: data?.analysis?.repairSuggestions || []
+          };
+        } catch (e) {
+          context.log.warn('image-analyzer call failed:', e?.message);
+        }
+      } else {
+        context.log.warn('Rejected image: invalid format or too large');
+      }
     }
 
     const convId = conversationId || uuidv4();
@@ -278,10 +326,11 @@ module.exports = async function (context, req) {
       role: 'user',
       content: message,
       timestamp: new Date().toISOString(),
-      images: Array.isArray(images) ? images : []
+      images: imageAnalysisSummary ? ['[image attached]'] : [], // don’t store raw images
+      imageAnalysis: imageAnalysisSummary || null
     });
 
-    // Retrieve product/pro suggestions (AU-wide unless user provided filters)
+    // Retrieve product/pro suggestions
     const suggestions = await getProductSuggestions(message, category, maxPrice, locObj);
     const retrievalContext = formatRetrievalContext(
       suggestions.products,
@@ -289,10 +338,12 @@ module.exports = async function (context, req) {
       suggestions.resolvedLocation
     );
 
+    // Build prompt (include image analysis if any)
     const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: `Context from our product index (prefer these if relevant):\n\n${retrievalContext}\n\nUser question follows.` },
-      ...conversation.messages.slice(-5)
+      ...(imageAnalysisSummary ? [{ role: 'user', content: `Image analysis summary:\nDescription: ${imageAnalysisSummary.description || 'n/a'}\nSuggestions: ${imageAnalysisSummary.repairSuggestions.map(s => `- ${s.issue}: ${s.action}`).join('\n')}` }] : []),
+      ...conversation.messages.slice(-5).map(m => ({ role: m.role, content: m.content }))
     ];
 
     const completion = await openaiClient.chat.completions.create({
@@ -348,7 +399,8 @@ module.exports = async function (context, req) {
         estimatedCostHint: costSample,
         products: suggestions.products,
         professionals: suggestions.professionals,
-        location: suggestions.resolvedLocation || locObj
+        location: suggestions.resolvedLocation || locObj,
+        imageAnalysis: imageAnalysisSummary || null
       }
     };
   } catch (err) {

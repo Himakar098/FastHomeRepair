@@ -142,31 +142,52 @@ const ChatInterface = ({ user }) => {
                   <h4>Recommended Products:</h4>
                   {message.products.map((product, prodIndex) => (
                     <div key={prodIndex} className="product-card">
-                      <h5>{product.name}</h5>
-                      <p>Price: ${product.price}</p>
-                      <p>Available at: {product.supplier}</p>
-                      {product.productUrl && (
-                        <a href={product.productUrl} target="_blank" rel="noopener noreferrer">
+                      <h5>{product.name || 'Product'}</h5>
+                      <p>
+                        Price: {product.priceLow != null && product.priceHigh != null
+                          ? `$${product.priceLow}–$${product.priceHigh}`
+                          : (product.price != null ? `$${product.price}` : 'n/a')}
+                      </p>
+                      <p>Supplier: {product.supplier || 'n/a'}</p>
+                      <p>
+                        {[
+                          product.location,
+                          product.state,
+                          product.postcode != null ? String(product.postcode) : null
+                        ].filter(Boolean).join(' ') || null}
+                      </p>
+                      {product.link && (
+                        <a href={product.link} target="_blank" rel="noopener noreferrer">
                           View Product
                         </a>
                       )}
                     </div>
                   ))}
                 </div>
-              )}
+                )}
 
               {message.professionals && message.professionals.length > 0 && (
-                <div className="recommended-professionals">
-                  <h4>Professional Help:</h4>
-                  {message.professionals.map((pro, proIndex) => (
-                    <div key={proIndex} className="professional-card">
-                      <h5>{pro.name}</h5>
-                      <p>Rating: {pro.rating}/5</p>
-                      <p>Price Range: ${pro.priceRange}</p>
-                      <p>Contact: {pro.contactInfo.phone}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="recommended-professionals">
+                <h4>Professional Help:</h4>
+                {message.professionals.map((pro, proIndex) => (
+                  <div key={proIndex} className="professional-card">
+                    <h5>{pro.name || 'Professional'}</h5>
+                    <p>Rating: {pro.rating != null ? pro.rating : 'n/a'}</p>
+                    <p>State/Area: {pro.state || 'n/a'}</p>
+                    {pro.serviceAreas && pro.serviceAreas.length > 0 && (
+                      <p>Areas: {pro.serviceAreas.join(', ')}</p>
+                    )}
+                    {pro.phone && <p>Phone: {pro.phone}</p>}
+                    {pro.website && (
+                      <p>
+                        <a href={pro.website} target="_blank" rel="noopener noreferrer">
+                          Website
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
               )}
             </div>
             
