@@ -6,7 +6,8 @@ const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
 const corsHeaders = {
   'Access-Control-Allow-Origin': allowedOrigin,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Vary': 'Origin'
 };
 
 const missingSearchEnv = ['SEARCH_ENDPOINT', 'SEARCH_API_KEY'].filter(n => !process.env[n]);

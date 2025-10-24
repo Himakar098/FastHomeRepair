@@ -11,7 +11,8 @@ const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || "*";
 const corsHeaders = {
   "Access-Control-Allow-Origin": allowedOrigin,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization"
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  'Vary': 'Origin'
 };
 
 // ---- Env + clients ----
