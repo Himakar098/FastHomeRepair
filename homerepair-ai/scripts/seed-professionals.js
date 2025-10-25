@@ -1,4 +1,12 @@
 // scripts/seed-professionals.js
+//
+// This script seeds the Cosmos DB professionals container with a few
+// sample tradespeople.  It adds a derived `servicesConcat` field for
+// each professional so that the backend matcher (which uses
+// Azure Search) can perform `CONTAINS` queries against the list of
+// services.  Without this field the matcher would not find any
+// professionals when filtering by service keywords.
+
 const { CosmosClient } = require('@azure/cosmos');
 
 const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
@@ -83,18 +91,30 @@ const sampleProfessionals = [
   }
 ];
 
+function addDerivedFields(professional) {
+  // Flatten the services array into a comma-separated string for search
+  const servicesConcat = Array.isArray(professional.services)
+    ? professional.services
+        .filter((s) => typeof s === 'string' && s.trim())
+        .map((s) => s.trim().toLowerCase())
+        .join(',')
+    : '';
+  return { ...professional, servicesConcat };
+}
+
 async function seedProfessionals() {
   console.log('Seeding professionals database...');
-  
+
   for (const professional of sampleProfessionals) {
+    const item = addDerivedFields(professional);
     try {
-      await container.items.upsert(professional);
-      console.log(`Added professional: ${professional.name}`);
+      await container.items.upsert(item);
+      console.log(`Added professional: ${item.name}`);
     } catch (error) {
-      console.error(`Error adding professional ${professional.name}:`, error);
+      console.error(`Error adding professional ${item.name}:`, error);
     }
   }
-  
+
   console.log('Professionals seeding complete!');
 }
 

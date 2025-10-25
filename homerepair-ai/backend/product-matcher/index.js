@@ -348,7 +348,11 @@ async function findProfessionals(database, problem, userLoc) {
   const service = extractServiceType(problem);
 
   // Prefer exact state match if provided; otherwise city/locality; fallback to no location filter
-  let query = 'SELECT TOP 5 * FROM c WHERE CONTAINS(LOWER(c.servicesConcat), LOWER(@service))';
+  // Build a WHERE clause that matches either the derived servicesConcat string
+  // or the original services array.  Some seeded data may not define
+  // servicesConcat, so we fall back to ARRAY_CONTAINS on c.services.
+  let query =
+    'SELECT TOP 5 * FROM c WHERE ((IS_DEFINED(c.servicesConcat) AND CONTAINS(LOWER(c.servicesConcat), LOWER(@service))) OR ARRAY_CONTAINS(c.services, @service))';
   const params = [{ name: '@service', value: service }];
 
   if (userLoc.state) {

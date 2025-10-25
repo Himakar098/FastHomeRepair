@@ -1,3 +1,11 @@
+// homerepair-ai/frontend/app/account/page.tsx
+//
+// Allows a signed-in user to view and update their account/profile
+// details persisted in the backend.  Falls back to prompting the
+// user to sign in if no account is detected.  This page wires up
+// authentication via the useAccessToken hook and posts updates
+// through the useHttp wrapper so that JWTs are sent automatically.
+
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useHttp } from '../../src/api/http';
@@ -37,7 +45,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (isSignedIn()) loadProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn()]);
 
   async function onSubmit(e: React.FormEvent) {

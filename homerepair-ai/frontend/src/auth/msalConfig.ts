@@ -1,4 +1,11 @@
 // homerepair-ai/frontend/src/auth/msalConfig.ts
+//
+// Configuration for the MSAL PublicClientApplication.  Note that the
+// redirect URIs default to http://localhost:3000 when running
+// locally unless overridden via NEXT_PUBLIC_REDIRECT_URI.  This
+// avoids being bounced off to the production Static Web Apps URL
+// during local development.
+
 import { Configuration, LogLevel } from '@azure/msal-browser';
 
 const tenant = process.env.NEXT_PUBLIC_B2C_TENANT!;              // e.g., homerepairb2c
@@ -12,8 +19,8 @@ export const msalConfig: Configuration = {
     clientId,
     authority,
     knownAuthorities: [knownAuthority],
-    redirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI || 'https://mango-glacier-0e5b73f00.3.azurestaticapps.net',
-    postLogoutRedirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI || 'https://mango-glacier-0e5b73f00.3.azurestaticapps.net'
+    redirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI || 'http://localhost:3000',
+    postLogoutRedirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI || 'http://localhost:3000'
   },
   cache: {
     cacheLocation: 'sessionStorage',

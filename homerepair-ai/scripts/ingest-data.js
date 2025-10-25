@@ -2,7 +2,7 @@
 /*
  * scripts/ingest-data.js
  *
- * This script demonstrates how to fetch real‑time product and
+ * This script demonstrates how to fetch realâ€‘time product and
  * professional data from public Australian websites and transform it
  * into a format suitable for ingestion into the FastHomeRepair search
  * index and Cosmos DB database.  Running this script will attempt to
@@ -40,14 +40,14 @@ async function fetchBunningsProducts(query) {
   try {
     const { data } = await axios.get(url, {
       headers: {
-        // Spoof a browser User‑Agent to avoid bot blocking
+        // Spoof a browser Userâ€‘Agent to avoid bot blocking
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36'
       },
       timeout: 15000
     });
     const $ = cheerio.load(data);
-    // Each product tile lives in a list item with data‑sku attribute
+    // Each product tile lives in a list item with dataâ€‘sku attribute
     $('.product-list__item').each((_, el) => {
       const $el = $(el);
       const id = $el.attr('data-sku') || null;

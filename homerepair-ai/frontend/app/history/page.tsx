@@ -1,3 +1,8 @@
+// homerepair-ai/frontend/app/history/page.tsx
+//
+// Displays a paginated list of the user's past conversations.  Only
+// accessible when the user is signed in; otherwise prompts for login.
+
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
@@ -44,7 +49,8 @@ export default function HistoryPage() {
   }
 
   useEffect(() => {
-    setItems([]); setContinuation(null);
+    setItems([]);
+    setContinuation(null);
     if (isSignedIn()) loadPage(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn()]);
