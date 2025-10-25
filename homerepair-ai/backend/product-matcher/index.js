@@ -2,6 +2,8 @@
 const { SearchClient, AzureKeyCredential } = require('@azure/search-documents');
 const { CosmosClient } = require('@azure/cosmos');
 const axios = require('axios');
+const cheerio = require('cheerio');
+const cheerio = require('cheerio');
 
 const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
 const corsHeaders = {
@@ -177,12 +179,29 @@ module.exports = async function (context, req) {
     // 3) Find professionals (simple)
     const professionals = await findProfessionals(database, problem, userLoc);
 
+    // 4) If no results are found, fall back to on-demand web search.
+    let fallbackProducts = [];
+    let fallbackPros = [];
+    try {
+      if (!detailedProducts.length) {
+        fallbackProducts = await fetchBunningsProducts(problem);
+      }
+      if (!professionals.length) {
+        const svc = extractServiceType(problem);
+        // Use city if provided, otherwise state
+        const loc = userLoc.city || userLoc.state || '';
+        fallbackPros = await fetchProfessionals(svc, loc);
+      }
+    } catch (err) {
+      context.log.warn('Fallback search error:', err.message);
+    }
+
     context.res = {
       status: 200,
       headers: corsHeaders,
       body: {
-        products: detailedProducts.map(toProductSchema),
-        professionals: professionals.map(toProfessionalSchema),
+        products: [...detailedProducts.map(toProductSchema), ...fallbackProducts.map(toProductSchema)],
+        professionals: [...professionals.map(toProfessionalSchema), ...fallbackPros.map(toProfessionalSchema)],
         location: userLoc,
         searchQuery: problem,
         totalResults: searchResults.length
@@ -429,4 +448,117 @@ function pickNumber(a, b) {
 }
 function cryptoRandomId() {
   return Math.random().toString(36).slice(2);
+}
+
+// ------------------------------------------------------------------------
+// Fallback web search helpers
+// These functions perform a simple scrape of the Bunnings website and
+// DuckDuckGo search results to provide products and professionals when
+// nothing is found in our Azure Search index or database.  They are
+// intentionally lightweight and intended for occasional use.  For
+// production use you should integrate official APIs.
+
+/**
+ * Scrape product listings from Bunnings for a given query.  Returns an
+ * array of objects compatible with the product schema used elsewhere.
+ * Note: network access may be restricted in some deployments; in that
+ * case this function will return an empty array.
+ *
+ * @param {string} query
+ * @returns {Promise<Array>}
+ */
+async function fetchBunningsProducts(query) {
+  const products = [];
+  const encoded = encodeURIComponent(query || '');
+  const url = `https://www.bunnings.com.au/search/products?q=${encoded}`;
+  try {
+    const { data } = await axios.get(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36'
+      },
+      timeout: 15000
+    });
+    const $ = cheerio.load(data);
+    $('.product-list__item').each((_, el) => {
+      const $el = $(el);
+      const id = $el.attr('data-sku') || null;
+      const name = $el.find('.product-title').text().trim();
+      const priceText = $el.find('.product-price__price').text().trim();
+      let price = null;
+      const match = priceText.match(/\$([\d,.]+)/);
+      if (match) price = parseFloat(match[1].replace(/,/g, ''));
+      const linkRel = $el.find('a.product-title-link').attr('href') || null;
+      const link = linkRel ? `https://www.bunnings.com.au${linkRel}` : null;
+      const imageUrl = $el.find('.product-image img').attr('src') || null;
+      if (name) {
+        products.push({
+          id: id || name,
+          name,
+          category: null,
+          price,
+          priceLow: null,
+          priceHigh: null,
+          supplier: 'Bunnings',
+          location: null,
+          state: null,
+          postcode: null,
+          problems: [],
+          rating: null,
+          link,
+          imageUrl,
+          lastUpdated: new Date().toISOString()
+        });
+      }
+    });
+  } catch (err) {
+    // Log and return empty; network may be unavailable
+    console.warn('Failed to fetch Bunnings products:', err.message);
+  }
+  return products;
+}
+
+/**
+ * Perform a basic DuckDuckGo search for local professionals.  Returns
+ * up to 5 results with minimal fields.  For more robust data use
+ * official business directories or APIs.
+ *
+ * @param {string} service
+ * @param {string} location
+ * @returns {Promise<Array>}
+ */
+async function fetchProfessionals(service, location) {
+  const pros = [];
+  const query = encodeURIComponent(`${service || ''} ${location || ''} site:hipages.com.au`);
+  const url = `https://duckduckgo.com/html/?q=${query}`;
+  try {
+    const { data } = await axios.get(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36'
+      },
+      timeout: 15000
+    });
+    const $ = cheerio.load(data);
+    $('a.result__a').each((i, el) => {
+      if (i >= 5) return false;
+      const link = $(el).attr('href');
+      const name = $(el).text().trim();
+      pros.push({
+        id: `${service}-${location}-${i}`,
+        name,
+        services: [service],
+        serviceAreas: [location],
+        phone: null,
+        website: link,
+        rating: null,
+        priceLow: null,
+        priceHigh: null,
+        state: null
+      });
+    });
+  } catch (err) {
+    console.warn('Failed to fetch professionals:', err.message);
+  }
+  return pros;
 }
