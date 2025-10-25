@@ -3,8 +3,8 @@ import Navigation from './components/Navigation';
 import AuthProvider from '../src/auth/AuthProvider';
 
 export const metadata = {
-  title: 'Home Repair AI',
-  description: 'Get instant expert advice for your home repairs',
+  title: 'Home Services',
+  description: 'Get instant expert advice for your house problems',
 }
 
 export default function RootLayout({
@@ -18,8 +18,8 @@ export default function RootLayout({
         <AuthProvider>
           <div className="App">
             <header className="app-header">
-              <h1>Home Repair AI</h1>
-              <p>Get instant expert advice for your home repairs</p>
+              <h1>Home Services</h1>
+              <p>Get instant expert advice for your house problems</p>
             </header>
             <Navigation />
             <main>{children}</main>
