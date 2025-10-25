@@ -1,7 +1,10 @@
-// src/components/ChatInterface.js
+// homerepair-ai/frontend/src/components/ChatInterface.js
+'use client';
+import { useHttp } from '../../src/api/http';
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Camera, Loader } from 'lucide-react';
 import axios from 'axios';
+
 
 const ChatInterface = ({ user }) => {
   const [messages, setMessages] = useState([]);
@@ -262,4 +265,18 @@ const ChatInterface = ({ user }) => {
   );
 };
 
-export default ChatInterface;
+export default function ChatInterface() {
+  const { post } = useHttp();
+
+  async function sendMessage(payload) {
+    try {
+      const { data } = await post('/api/chat-handler', payload);
+      // ... handle success ...
+    } catch (error) {
+      console.error('Chat error:', error?.response?.status, error?.response?.data || error.message);
+      // ... show error in UI ...
+    }
+  }
+
+  // ... rest of your component ...
+}

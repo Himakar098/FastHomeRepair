@@ -1,5 +1,6 @@
-import './globals.css'
-import Navigation from './components/Navigation'
+import './globals.css';
+import Navigation from './components/Navigation';
+import AuthProvider from '../src/auth/AuthProvider';
 
 export const metadata = {
   title: 'Home Repair AI',
@@ -14,14 +15,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="App">
-          <header className="app-header">
-            <h1>Home Repair AI</h1>
-            <p>Get instant expert advice for your home repairs</p>
-          </header>
-          <Navigation />
-          <main>{children}</main>
-        </div>
+        <AuthProvider>
+          <div className="App">
+            <header className="app-header">
+              <h1>Home Repair AI</h1>
+              <p>Get instant expert advice for your home repairs</p>
+            </header>
+            <Navigation />
+            <main>{children}</main>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   )
