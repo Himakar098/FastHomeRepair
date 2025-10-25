@@ -9,18 +9,29 @@ type ProProfile = {
   website?: string | null;
   state?: string;
   serviceAreas?: string[];
+  services?: string[];
   abn?: string | null;
 };
 
 const STATES = ['NSW','VIC','QLD','WA','SA','TAS','NT','ACT'];
 
+/**
+ * ProfessionalPage
+ *
+ * This page allows a signed‑in professional to manage their profile.
+ * In addition to the original fields (business name, state, service
+ * areas, phone, website and ABN), it now captures a list of
+ * services offered by the business (e.g. plumbing, electrical) so
+ * that the service matcher can find them based on user queries.
+ */
 export default function ProfessionalPage() {
   const { post } = useHttp();
   const { isSignedIn, getToken } = useAccessToken();
-  const [profile, setProfile] = useState<ProProfile>({ businessName: '', state: 'QLD', serviceAreas: [] });
+  const [profile, setProfile] = useState<ProProfile>({ businessName: '', state: 'QLD', serviceAreas: [], services: [] });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [areasInput, setAreasInput] = useState('');
+  const [servicesInput, setServicesInput] = useState('');
 
   async function loadProfile() {
     setLoading(true);
@@ -34,6 +45,7 @@ export default function ProfessionalPage() {
       if (data?.professional) {
         setProfile({ ...data.professional });
         setAreasInput((data.professional.serviceAreas || []).join(', '));
+        setServicesInput((data.professional.services || []).join(', '));
       }
     } catch (e: any) {
       setMsg('Failed to load professional profile');
@@ -44,11 +56,12 @@ export default function ProfessionalPage() {
 
   useEffect(() => {
     if (isSignedIn()) loadProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn()]);
 
-  function parseAreas(raw: string) {
-    return raw.split(',')
+  function parseCommaList(raw: string): string[] {
+    return raw
+      .split(',')
       .map(s => s.trim())
       .filter(Boolean)
       .slice(0, 20);
@@ -64,7 +77,8 @@ export default function ProfessionalPage() {
         phone: profile.phone || undefined,
         website: profile.website || undefined,
         state: profile.state,
-        serviceAreas: parseAreas(areasInput),
+        serviceAreas: parseCommaList(areasInput),
+        services: parseCommaList(servicesInput),
         abn: profile.abn || undefined
       };
       await post('/api/register-professional', body);
@@ -96,7 +110,6 @@ export default function ProfessionalPage() {
             maxLength={150}
           />
         </div>
-
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="state">State</label><br />
           <select
@@ -109,7 +122,6 @@ export default function ProfessionalPage() {
             {STATES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="serviceAreas">Service areas (comma-separated)</label><br />
           <input
@@ -121,7 +133,17 @@ export default function ProfessionalPage() {
             placeholder="Brisbane CBD, South Brisbane, Fortitude Valley"
           />
         </div>
-
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="services">Services offered (comma-separated)</label><br />
+          <input
+            id="services"
+            name="services"
+            type="text"
+            value={servicesInput}
+            onChange={(e) => setServicesInput(e.target.value)}
+            placeholder="plumbing, carpentry, painting"
+          />
+        </div>
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="phone">Phone</label><br />
           <input
@@ -133,7 +155,6 @@ export default function ProfessionalPage() {
             placeholder="+61 4XX XXX XXX"
           />
         </div>
-
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="website">Website</label><br />
           <input
@@ -145,7 +166,6 @@ export default function ProfessionalPage() {
             placeholder="https://example.com"
           />
         </div>
-
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="abn">ABN (11 digits)</label><br />
           <input
@@ -157,7 +177,6 @@ export default function ProfessionalPage() {
             placeholder="12345678901"
           />
         </div>
-
         <button type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save'}</button>
       </form>
       {msg && <p style={{ marginTop: 12 }}>{msg}</p>}

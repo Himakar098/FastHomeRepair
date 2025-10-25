@@ -1,6 +1,7 @@
-// homerepair-ai/backend/product-matcher/index.js
+// Modified product matcher to include productUrl and price ranges
 const { SearchClient, AzureKeyCredential } = require('@azure/search-documents');
 const { CosmosClient } = require('@azure/cosmos');
+const axios = require('axios');
 
 const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
 const corsHeaders = {
@@ -10,7 +11,7 @@ const corsHeaders = {
   'Vary': 'Origin'
 };
 
-const missingSearchEnv = ['SEARCH_ENDPOINT', 'SEARCH_API_KEY'].filter(n => !process.env[n]);
+const missingSearchEnv = ['SEARCH_ENDPOINT', 'SEARCH_API_KEY'].filter((n) => !process.env[n]);
 
 // Allow the index name to be configured
 const INDEX_NAME = process.env.SEARCH_INDEX || 'products-index';
@@ -72,22 +73,45 @@ function normaliseLocation(input = {}) {
 function mapStateAbbrev(s) {
   const t = s.toUpperCase();
   const map = {
-    NSW: 'NSW', 'NEW SOUTH WALES': 'NSW',
-    VIC: 'VIC', 'VICTORIA': 'VIC',
-    QLD: 'QLD', 'QUEENSLAND': 'QLD',
-    WA: 'WA', 'WESTERN AUSTRALIA': 'WA',
-    SA: 'SA', 'SOUTH AUSTRALIA': 'SA',
-    TAS: 'TAS', 'TASMANIA': 'TAS',
-    NT: 'NT', 'NORTHERN TERRITORY': 'NT',
-    ACT: 'ACT', 'AUSTRALIAN CAPITAL TERRITORY': 'ACT'
+    NSW: 'NSW',
+    'NEW SOUTH WALES': 'NSW',
+    VIC: 'VIC',
+    VICTORIA: 'VIC',
+    QLD: 'QLD',
+    QUEENSLAND: 'QLD',
+    WA: 'WA',
+    'WESTERN AUSTRALIA': 'WA',
+    SA: 'SA',
+    'SOUTH AUSTRALIA': 'SA',
+    TAS: 'TAS',
+    TASMANIA: 'TAS',
+    NT: 'NT',
+    'NORTHERN TERRITORY': 'NT',
+    ACT: 'ACT',
+    'AUSTRALIAN CAPITAL TERRITORY': 'ACT'
   };
   return map[t] || null;
 }
 function findStateInText(txt) {
   const u = txt.toUpperCase();
-  const tokens = ['NSW','VIC','QLD','WA','SA','TAS','NT','ACT',
-    'NEW SOUTH WALES','VICTORIA','QUEENSLAND','WESTERN AUSTRALIA',
-    'SOUTH AUSTRALIA','TASMANIA','NORTHERN TERRITORY','AUSTRALIAN CAPITAL TERRITORY'];
+  const tokens = [
+    'NSW',
+    'VIC',
+    'QLD',
+    'WA',
+    'SA',
+    'TAS',
+    'NT',
+    'ACT',
+    'NEW SOUTH WALES',
+    'VICTORIA',
+    'QUEENSLAND',
+    'WESTERN AUSTRALIA',
+    'SOUTH AUSTRALIA',
+    'TASMANIA',
+    'NORTHERN TERRITORY',
+    'AUSTRALIAN CAPITAL TERRITORY'
+  ];
   for (const tok of tokens) {
     if (u.includes(tok)) return mapStateAbbrev(tok);
   }
@@ -108,13 +132,21 @@ module.exports = async function (context, req) {
     if (missingSearchEnv.length > 0) {
       const details = `Missing required environment variables: ${missingSearchEnv.join(', ')}`;
       context.log.error(details);
-      context.res = { status: 500, headers: corsHeaders, body: { error: 'Product search not configured', details } };
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Product search not configured', details }
+      };
       return;
     }
     if (!database) {
       const details = 'Missing required environment variable: COSMOS_CONNECTION_STRING';
       context.log.error(details);
-      context.res = { status: 500, headers: corsHeaders, body: { error: 'Product search not configured', details } };
+      context.res = {
+        status: 500,
+        headers: corsHeaders,
+        body: { error: 'Product search not configured', details }
+      };
       return;
     }
 
@@ -122,7 +154,11 @@ module.exports = async function (context, req) {
     const userLoc = normaliseLocation(req.body || {}); // parse location/state/postcode if any
 
     if (!problem) {
-      context.res = { status: 400, headers: corsHeaders, body: { error: 'Problem description required' } };
+      context.res = {
+        status: 400,
+        headers: corsHeaders,
+        body: { error: 'Problem description required' }
+      };
       return;
     }
 
@@ -159,17 +195,16 @@ module.exports = async function (context, req) {
 };
 
 // ---------------------- Search ----------------------
-// --- replace your searchProducts with this ---
 async function searchProducts(searchClient, problem, category, maxPrice, userLoc) {
   const filters = [];
-  if (category)        filters.push(`category eq '${escapeOData(category)}'`);
-  if (maxPrice)        filters.push(`price le ${Number(maxPrice)}`);
-  if (userLoc?.state)  filters.push(`state eq '${escapeOData(userLoc.state)}'`);
+  if (category) filters.push(`category eq '${escapeOData(category)}'`);
+  if (maxPrice) filters.push(`price le ${Number(maxPrice)}`);
+  if (userLoc?.state) filters.push(`state eq '${escapeOData(userLoc.state)}'`);
   if (userLoc?.postcode) filters.push(`postcode eq ${Number(userLoc.postcode)}`);
-  if (userLoc?.city)   filters.push(`location eq '${escapeOData(userLoc.city)}'`);
+  if (userLoc?.city) filters.push(`location eq '${escapeOData(userLoc.city)}'`);
   const filter = filters.length ? filters.join(' and ') : undefined;
 
-  // 1) Try SDK first (works on @azure/search-documents v12+)
+  // Try SDK first (works on @azure/search-documents v12+)
   try {
     const options = {
       searchFields: ['name', 'description', 'problems'],
@@ -190,10 +225,10 @@ async function searchProducts(searchClient, problem, category, maxPrice, userLoc
 
     // Older shapes (be defensive and only use arrays)
     const candidates = [];
-    if (Array.isArray(res?.results))   candidates.push(res.results);
-    if (Array.isArray(res?.value))     candidates.push(res.value);
+    if (Array.isArray(res?.results)) candidates.push(res.results);
+    if (Array.isArray(res?.value)) candidates.push(res.value);
     if (Array.isArray(res?.documents)) candidates.push(res.documents);
-    if (Array.isArray(res))            candidates.push(res);
+    if (Array.isArray(res)) candidates.push(res);
 
     for (const arr of candidates) {
       for (const r of arr) {
@@ -207,23 +242,21 @@ async function searchProducts(searchClient, problem, category, maxPrice, userLoc
     // If we reach here, fall back to REST
     throw new Error('SDK response shape unsupported; using REST fallback');
   } catch (e) {
-    // 2) REST fallback (version-proof)
     return await restSearchProducts(problem, filter);
   }
 }
 
-// --- add this REST fallback helper (requires SEARCH_ENDPOINT, SEARCH_API_KEY, INDEX_NAME) ---
-const axios = require('axios');
+// REST fallback helper (requires SEARCH_ENDPOINT, SEARCH_API_KEY, INDEX_NAME)
 async function restSearchProducts(problem, filter) {
-  const endpoint = process.env.SEARCH_ENDPOINT;              // e.g. https://homerepair-search.search.windows.net
-  const index    = process.env.SEARCH_INDEX || 'products-index';
-  const apiKey   = process.env.SEARCH_API_KEY;
+  const endpoint = process.env.SEARCH_ENDPOINT; // e.g. https://homerepair-search.search.windows.net
+  const index = process.env.SEARCH_INDEX || 'products-index';
+  const apiKey = process.env.SEARCH_API_KEY;
 
   if (!endpoint || !apiKey) {
     throw new Error('Missing SEARCH_ENDPOINT or SEARCH_API_KEY for REST fallback');
   }
 
-  const url = `${endpoint.replace(/\/+$/,'')}/indexes/${encodeURIComponent(index)}/docs/search?api-version=2024-07-01`;
+  const url = `${endpoint.replace(/\/+$/, '')}/indexes/${encodeURIComponent(index)}/docs/search?api-version=2024-07-01`;
 
   const body = {
     search: problem || '',
@@ -242,9 +275,8 @@ async function restSearchProducts(problem, filter) {
   });
 
   const values = Array.isArray(data?.value) ? data.value : [];
-  return values.map(v => {
+  return values.map((v) => {
     const d = v || {};
-    // v['@search.score'] may exist
     const score = typeof d['@search.score'] === 'number' ? d['@search.score'] : null;
     return toResultRow(d, score);
   });
@@ -260,15 +292,18 @@ function toResultRow(d, score) {
     location: d?.location ?? null,
     state: d?.state ?? null,
     postcode: toNum(d?.postcode),
-    problems: Array.isArray(d?.problems) ? d.problems : (d?.problems ? [d.problems] : []),
+    problems: Array.isArray(d?.problems) ? d.problems : d?.problems ? [d.problems] : [],
     rating: toNum(d?.rating),
-    link: d?.link || d?.url || null,
+    link: d?.link || d?.url || d?.productUrl || null,
+    productUrl: d?.productUrl || d?.link || d?.url || null,
     imageUrl: d?.imageUrl ?? null,
     lastUpdated: d?.lastUpdated ?? null,
     score: score ?? null
   };
 }
-function toNum(x) { return (typeof x === 'number' && Number.isFinite(x)) ? x : null; }
+function toNum(x) {
+  return typeof x === 'number' && Number.isFinite(x) ? x : null;
+}
 
 // ---------------------- Cosmos Hydration ----------------------
 async function getProductDetails(database, searchResults) {
@@ -285,13 +320,14 @@ async function getProductDetails(database, searchResults) {
         price: pickNumber(resource.price, r.price),
         priceLow: pickNumber(resource.priceLow, null),
         priceHigh: pickNumber(resource.priceHigh, null),
-        link: resource.link || resource.url || r.link || null,
+        link: resource.link || resource.productUrl || resource.url || r.link || null,
+        productUrl: resource.productUrl || resource.link || resource.url || r.productUrl || null,
         problems: Array.isArray(resource.problems) ? resource.problems : r.problems,
         rating: pickNumber(resource.rating, r.rating),
         imageUrl: resource.imageUrl || r.imageUrl || null,
         lastUpdated: resource.lastUpdated || r.lastUpdated || null,
         state: resource.state || r.state || null,
-        postcode: isNumber(resource.postcode) ? Number(resource.postcode) : (r.postcode ?? null),
+        postcode: isNumber(resource.postcode) ? Number(resource.postcode) : r.postcode ?? null,
         searchScore: r.score
       });
     } catch {
@@ -309,7 +345,6 @@ async function getProductDetails(database, searchResults) {
 // ---------------------- Professionals ----------------------
 async function findProfessionals(database, problem, userLoc) {
   const container = database.container('professionals');
-
   const service = extractServiceType(problem);
 
   // Prefer exact state match if provided; otherwise city/locality; fallback to no location filter
@@ -344,6 +379,7 @@ function toProductSchema(p) {
     problems: Array.isArray(p.problems) ? p.problems : [],
     rating: isNumber(p.rating) ? Number(p.rating) : null,
     link: p.link ?? null,
+    productUrl: p.productUrl ?? null,
     imageUrl: p.imageUrl ?? null,
     lastUpdated: p.lastUpdated ?? null,
     searchScore: isNumber(p.searchScore ?? p.score) ? Number(p.searchScore ?? p.score) : null
@@ -353,7 +389,7 @@ function toProductSchema(p) {
 function toProfessionalSchema(pro) {
   return {
     id: String(pro.id || pro._rid || cryptoRandomId()),
-    name: pro.name ?? null,
+    name: pro.businessName || pro.name || null,
     services: Array.isArray(pro.services) ? pro.services : [],
     serviceAreas: Array.isArray(pro.serviceAreas) ? pro.serviceAreas : [],
     phone: pro.phone ?? null,
@@ -374,11 +410,19 @@ function extractServiceType(problem) {
   };
   const t = (problem || '').toLowerCase();
   for (const [service, keywords] of Object.entries(serviceMap)) {
-    if (keywords.some(k => t.includes(k))) return service;
+    if (keywords.some((k) => t.includes(k))) return service;
   }
   return 'general_maintenance';
 }
-function escapeOData(s = '') { return String(s).replace(/'/g, "''"); }
-function isNumber(x) { return typeof x === 'number' && Number.isFinite(x); }
-function pickNumber(a, b) { return isNumber(a) ? a : isNumber(b) ? b : null; }
-function cryptoRandomId() { return Math.random().toString(36).slice(2); }
+function escapeOData(s = '') {
+  return String(s).replace(/'/g, "''");
+}
+function isNumber(x) {
+  return typeof x === 'number' && Number.isFinite(x);
+}
+function pickNumber(a, b) {
+  return isNumber(a) ? a : isNumber(b) ? b : null;
+}
+function cryptoRandomId() {
+  return Math.random().toString(36).slice(2);
+}

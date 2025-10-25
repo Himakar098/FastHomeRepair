@@ -15,8 +15,34 @@ const cosmos = process.env.COSMOS_CONNECTION_STRING
 
 function mapStateAbbrev(s) {
   const t = String(s || '').toUpperCase();
-  const map = { NSW:'NSW','NEW SOUTH WALES':'NSW', VIC:'VIC','VICTORIA':'VIC', QLD:'QLD','QUEENSLAND':'QLD', WA:'WA','WESTERN AUSTRALIA':'WA', SA:'SA','SOUTH AUSTRALIA':'SA', TAS:'TAS','TASMANIA':'TAS', NT:'NT','NORTHERN TERRITORY':'NT', ACT:'ACT','AUSTRALIAN CAPITAL TERRITORY':'ACT' };
+  const map = {
+    NSW: 'NSW',
+    'NEW SOUTH WALES': 'NSW',
+    VIC: 'VIC',
+    'VICTORIA': 'VIC',
+    QLD: 'QLD',
+    'QUEENSLAND': 'QLD',
+    WA: 'WA',
+    'WESTERN AUSTRALIA': 'WA',
+    SA: 'SA',
+    'SOUTH AUSTRALIA': 'SA',
+    TAS: 'TAS',
+    'TASMANIA': 'TAS',
+    NT: 'NT',
+    'NORTHERN TERRITORY': 'NT',
+    ACT: 'ACT',
+    'AUSTRALIAN CAPITAL TERRITORY': 'ACT'
+  };
   return map[t] || null;
+}
+
+// Helper to flatten services array into concatenated lowercase string for searching
+function concatServices(services) {
+  if (!Array.isArray(services) || services.length === 0) return '';
+  return services
+    .filter((s) => typeof s === 'string' && s.trim())
+    .map((s) => s.trim().toLowerCase())
+    .join(',');
 }
 
 module.exports = async function (context, req) {
@@ -25,7 +51,11 @@ module.exports = async function (context, req) {
     return;
   }
   if (!cosmos) {
-    context.res = { status: 500, headers: corsHeaders, body: { error: 'COSMOS_CONNECTION_STRING missing' } };
+    context.res = {
+      status: 500,
+      headers: corsHeaders,
+      body: { error: 'COSMOS_CONNECTION_STRING missing' }
+    };
     return;
   }
 
@@ -33,7 +63,11 @@ module.exports = async function (context, req) {
   const authz = req.headers['authorization'] || req.headers['Authorization'] || '';
   const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
   let claims;
-  try { claims = await validateJwt(token); } catch { claims = null; }
+  try {
+    claims = await validateJwt(token);
+  } catch {
+    claims = null;
+  }
   const sub = claims?.sub;
   if (!sub) {
     context.res = { status: 401, headers: corsHeaders, body: { error: 'Unauthorized' } };
@@ -41,45 +75,81 @@ module.exports = async function (context, req) {
   }
 
   // Validate body
-  const { businessName, phone, website, state, serviceAreas, abn } = req.body || {};
+  const {
+    businessName,
+    phone,
+    website,
+    state,
+    serviceAreas,
+    abn,
+    services
+  } = req.body || {};
   if (!businessName || typeof businessName !== 'string' || businessName.length > 150) {
-    context.res = { status: 400, headers: corsHeaders, body: { error: 'businessName is required (<=150 chars)' } };
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'businessName is required (<=150 chars)' }
+    };
     return;
   }
   let stateCode = mapStateAbbrev(state);
   if (!stateCode) {
-    context.res = { status: 400, headers: corsHeaders, body: { error: 'state is required (AUS state/territory)' } };
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'state is required (AUS state/territory)' }
+    };
     return;
   }
-  const areas = Array.isArray(serviceAreas) ? serviceAreas.filter(a => typeof a === 'string' && a.trim()).slice(0, 20) : [];
+  const areas = Array.isArray(serviceAreas)
+    ? serviceAreas.filter((a) => typeof a === 'string' && a.trim()).slice(0, 20)
+    : [];
+  const serviceList = Array.isArray(services)
+    ? services.filter((s) => typeof s === 'string' && s.trim()).slice(0, 20)
+    : [];
 
   if (phone && !/^[0-9+ ]{6,20}$/.test(phone)) {
-    context.res = { status: 400, headers: corsHeaders, body: { error: 'phone invalid' } };
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'phone invalid' }
+    };
     return;
   }
-  if (website && !/^https?:\/\/[^\s]+$/i.test(website)) {
-    context.res = { status: 400, headers: corsHeaders, body: { error: 'website must start with http(s)://' } };
+  if (website && !/^https?:\/\/[\S]+$/i.test(website)) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'website must start with http(s)://' }
+    };
     return;
   }
   if (abn && !/^\d{11}$/.test(abn.replace(/\s/g, ''))) {
-    context.res = { status: 400, headers: corsHeaders, body: { error: 'ABN must be 11 digits (no spaces)' } };
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'ABN must be 11 digits (no spaces)' }
+    };
     return;
   }
 
   const db = cosmos.database('homerepair-db');
   const pros = db.container('professionals');
 
+  const now = new Date().toISOString();
   const item = {
-    id: sub,                 // owner is always the signed-in user
+    id: sub, // owner is always the signed-in user
     ownerId: sub,
     businessName,
     phone: phone || null,
     website: website || null,
     state: stateCode,
     serviceAreas: areas,
+    services: serviceList,
+    servicesConcat: concatServices(serviceList),
     abn: abn || null,
-    updatedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString()
+    updatedAt: now,
+    createdAt: now
   };
 
   try {
@@ -87,9 +157,17 @@ module.exports = async function (context, req) {
     if (existing?.resource?.createdAt) item.createdAt = existing.resource.createdAt;
 
     await pros.items.upsert(item, { partitionKey: sub });
-    context.res = { status: 200, headers: corsHeaders, body: { ok: true, professional: item } };
+    context.res = {
+      status: 200,
+      headers: corsHeaders,
+      body: { ok: true, professional: item }
+    };
   } catch (e) {
     context.log.error('register-professional error', e);
-    context.res = { status: 500, headers: corsHeaders, body: { error: 'Failed to save professional profile' } };
+    context.res = {
+      status: 500,
+      headers: corsHeaders,
+      body: { error: 'Failed to save professional profile' }
+    };
   }
 };
