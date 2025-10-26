@@ -8,7 +8,7 @@ An AI‑powered assistant for diagnosing home maintenance issues, recommending D
 
 **Image analysis** – Uploaded images are sent to an Azure Function that uses Azure Computer Vision to extract descriptions, tags, objects and text. The summary is passed to the assistant as context.
 
-Product & professional matching – A search function queries an Azure Cognitive Search index and a Cosmos DB database to find relevant products (e.g. from Bunnings) and professionals near the user. The location parser extracts suburb, state and postcode from free‑form input to filter results.
+**Product & professional matching** – A search function queries an Azure Cognitive Search index and a Cosmos DB database to find relevant products (e.g. from Bunnings) and professionals near the user. The location parser extracts suburb, state and postcode from free‑form input to filter results.
 
 Real‑time web fallback – If no products or professionals are found in the index, the backend scrapes the Bunnings website and DuckDuckGo results for the user’s query to provide up‑to‑date suggestions. These items are merged into the response.
 
