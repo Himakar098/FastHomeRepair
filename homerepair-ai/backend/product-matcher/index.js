@@ -3,7 +3,6 @@ const { SearchClient, AzureKeyCredential } = require('@azure/search-documents');
 const { CosmosClient } = require('@azure/cosmos');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const cheerio = require('cheerio');
 
 const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
 const corsHeaders = {
