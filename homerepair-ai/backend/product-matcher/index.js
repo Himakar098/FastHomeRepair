@@ -183,7 +183,19 @@ module.exports = async function (context, req) {
     let fallbackPros = [];
     try {
       if (!detailedProducts.length) {
-        fallbackProducts = await fetchBunningsProducts(problem);
+        const terms = deriveSearchTerms(problem);
+        for (const term of terms) {
+          // accumulate unique products from multiple queries
+          const items = await fetchBunningsProducts(term);
+          fallbackProducts.push(...items);
+          if (fallbackProducts.length >= 5) break;
+        }
+        // Deduplicate by id
+        const map = new Map();
+        for (const p of fallbackProducts) {
+          if (!map.has(p.id)) map.set(p.id, p);
+        }
+        fallbackProducts = Array.from(map.values());
       }
       if (!professionals.length) {
         const svc = extractServiceType(problem);
@@ -515,6 +527,36 @@ async function fetchBunningsProducts(query) {
     console.warn('Failed to fetch Bunnings products:', err.message);
   }
   return products;
+}
+
+/**
+ * Derive search keywords from a user problem description to improve
+ * the likelihood of finding relevant products on Bunnings.  If the
+ * input mentions glass, showers or hard water stains, return
+ * appropriate cleaner keywords.  Extend this mapping as new use
+ * cases are discovered.
+ *
+ * @param {string} problem
+ * @returns {string[]}
+ */
+function deriveSearchTerms(problem) {
+  const terms = [];
+  const text = String(problem || '').toLowerCase();
+  // Hard water / limescale on shower glass
+  if (/(shower|glass|screen)/.test(text) && /(droplet|stain|deposit|scale)/.test(text)) {
+    terms.push('glass cleaner', 'hard water stain remover', 'limescale remover');
+  }
+  // Wooden furniture repair
+  if (/bed|table|chair/.test(text) && /(broken|cracked|damaged)/.test(text)) {
+    terms.push('wood repair kit', 'wood glue');
+  }
+  // Generic fallback
+  if (terms.length === 0) {
+    // Extract nouns/adjectives as simple keyword approximations
+    const match = text.match(/([a-z]{4,})/g);
+    if (match) terms.push(...match.slice(0, 3));
+  }
+  return terms;
 }
 
 /**
