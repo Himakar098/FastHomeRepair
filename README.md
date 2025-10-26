@@ -6,7 +6,7 @@ An AI‑powered assistant for diagnosing home maintenance issues, recommending D
 
 **Conversational UI** – A chat interface where users describe issues in natural language and optionally attach photos. The assistant asks follow‑up questions if key details are missing and responds with diagnosis, difficulty, materials/tools, step‑by‑step instructions, safety warnings, when to call a professional, tenant/landlord notes, and estimated cost.
 
-Image analysis – Uploaded images are sent to an Azure Function that uses Azure Computer Vision to extract descriptions, tags, objects and text. The summary is passed to the assistant as context.
+**Image analysis** – Uploaded images are sent to an Azure Function that uses Azure Computer Vision to extract descriptions, tags, objects and text. The summary is passed to the assistant as context.
 
 Product & professional matching – A search function queries an Azure Cognitive Search index and a Cosmos DB database to find relevant products (e.g. from Bunnings) and professionals near the user. The location parser extracts suburb, state and postcode from free‑form input to filter results.
 
