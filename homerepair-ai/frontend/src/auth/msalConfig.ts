@@ -9,10 +9,12 @@
 import { Configuration, LogLevel } from '@azure/msal-browser';
 
 const tenant = process.env.NEXT_PUBLIC_B2C_TENANT!;              // e.g., homerepairb2c
-const policy = process.env.NEXT_PUBLIC_B2C_POLICY!;              // e.g., B2C_1_signupsignin
+const policy = process.env.NEXT_PUBLIC_B2C_POLICY!;              // e.g., b2c_1_signupsignin
 const clientId = process.env.NEXT_PUBLIC_B2C_CLIENT_ID!;         // eb662b8c-...
-const knownAuthority = `${tenant}.b2clogin.com`;
-const authority = `https://${tenant}.b2clogin.com/${tenant}.onmicrosoft.com/${policy}`;
+const domainSuffix = process.env.NEXT_PUBLIC_B2C_DOMAIN ?? 'b2clogin.com'; // add this line
+
+const knownAuthority = `${tenant}.${domainSuffix}`;
+const authority = `https://${tenant}.${domainSuffix}/${tenant}.onmicrosoft.com/${policy}`;
 
 export const msalConfig: Configuration = {
   auth: {
