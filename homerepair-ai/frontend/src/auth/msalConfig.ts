@@ -1,29 +1,34 @@
 // homerepair-ai/frontend/src/auth/msalConfig.ts
-//
-// Configuration for the MSAL PublicClientApplication.  Note that the
-// redirect URIs default to http://localhost:3000 when running
-// locally unless overridden via NEXT_PUBLIC_REDIRECT_URI.  This
-// avoids being bounced off to the production Static Web Apps URL
-// during local development.
 
-import { Configuration, LogLevel } from '@azure/msal-browser';
+import { Configuration, LogLevel } from "@azure/msal-browser";
 
-const tenant = process.env.NEXT_PUBLIC_B2C_TENANT!;              // e.g., homerepairb2c
-const policy = process.env.NEXT_PUBLIC_B2C_POLICY!;              // e.g., b2c_1_signupsignin
-const clientId = process.env.NEXT_PUBLIC_B2C_CLIENT_ID!;         // eb662b8c-...
-const knownAuthority = `${tenant}.ciamlogin.com`;
-const authority = `https://${tenant}.ciamlogin.com/${tenant}.onmicrosoft.com/${policy}`;
+const tenant   = process.env.NEXT_PUBLIC_B2C_TENANT!;    // e.g. homerepairb2c
+const policy   = process.env.NEXT_PUBLIC_B2C_POLICY!;    // e.g. B2C_1_signupsignin
+const clientId = process.env.NEXT_PUBLIC_B2C_CLIENT_ID!; // SPA client ID
+
+// Allow overriding the login domain via an env var.  Defaults to the classic b2clogin.com.
+const domainSuffix = process.env.NEXT_PUBLIC_B2C_DOMAIN || "b2clogin.com";
+
+// Build the authority based on the chosen domain suffix.
+const knownAuthority = `${tenant}.${domainSuffix}`;
+const authority      = `https://${knownAuthority}/${tenant}.onmicrosoft.com/${policy}`;
+
+// Use the current origin as the fallback redirect URI in production,
+// and default to localhost during development if none is provided.
+const fallbackRedirect =
+  process.env.NEXT_PUBLIC_REDIRECT_URI ||
+  (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 
 export const msalConfig: Configuration = {
   auth: {
     clientId,
     authority,
     knownAuthorities: [knownAuthority],
-    redirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI || 'http://localhost:3000',
-    postLogoutRedirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI || 'http://localhost:3000'
+    redirectUri: fallbackRedirect,
+    postLogoutRedirectUri: fallbackRedirect
   },
   cache: {
-    cacheLocation: 'sessionStorage',
+    cacheLocation: "sessionStorage",
     storeAuthStateInCookie: false
   },
   system: {
@@ -36,9 +41,8 @@ export const msalConfig: Configuration = {
 
 export const loginRequest = {
   scopes: [
-    'openid',
-    'offline_access',
-    // Your API scope:
-    process.env.NEXT_PUBLIC_B2C_API_SCOPE! // e.g., api://219c.../access_as_user
+    "openid",
+    "offline_access",
+    process.env.NEXT_PUBLIC_B2C_API_SCOPE! // api://…/access_as_user
   ]
 };
