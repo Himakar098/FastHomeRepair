@@ -2,11 +2,17 @@
 
 import { Configuration, LogLevel } from '@azure/msal-browser';
 
-const tenant = process.env.NEXT_PUBLIC_CIAM_TENANT;
-const clientId = process.env.NEXT_PUBLIC_CIAM_CLIENT_ID;
+const tenant =
+  process.env.NEXT_PUBLIC_CIAM_TENANT ||
+  process.env.NEXT_PUBLIC_B2C_TENANT; // fallback for pipeline env
+const clientId =
+  process.env.NEXT_PUBLIC_CIAM_CLIENT_ID ||
+  process.env.NEXT_PUBLIC_B2C_CLIENT_ID;
 
 if (!tenant || !clientId) {
-  throw new Error('NEXT_PUBLIC_CIAM_TENANT and NEXT_PUBLIC_CIAM_CLIENT_ID must be set for CIAM auth.');
+  throw new Error(
+    'NEXT_PUBLIC_CIAM_TENANT/NEXT_PUBLIC_CIAM_CLIENT_ID must be provided for CIAM auth.'
+  );
 }
 
 const authorityHost = `${tenant}.ciamlogin.com`;
@@ -17,6 +23,7 @@ const redirectUri =
 
 const apiScope =
   process.env.NEXT_PUBLIC_CIAM_API_SCOPE ||
+  process.env.NEXT_PUBLIC_B2C_API_SCOPE ||
   (process.env.NEXT_PUBLIC_API_CLIENT_ID
     ? `api://${process.env.NEXT_PUBLIC_API_CLIENT_ID}/access_as_user`
     : undefined);
