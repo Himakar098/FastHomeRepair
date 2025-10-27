@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useHttp } from '../../src/api/http';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 
@@ -26,14 +26,14 @@ const STATES = ['NSW','VIC','QLD','WA','SA','TAS','NT','ACT'];
  */
 export default function ProfessionalPage() {
   const { post } = useHttp();
-  const { isSignedIn, getToken } = useAccessToken();
+  const { signedIn, getToken } = useAccessToken();
   const [profile, setProfile] = useState<ProProfile>({ businessName: '', state: 'QLD', serviceAreas: [], services: [] });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [areasInput, setAreasInput] = useState('');
   const [servicesInput, setServicesInput] = useState('');
 
-  async function loadProfile() {
+   const loadProfile = useCallback(async () => {
     setLoading(true);
     setMsg(null);
     try {
@@ -52,12 +52,12 @@ export default function ProfessionalPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [getToken]);
 
   useEffect(() => {
-    if (isSignedIn()) loadProfile();
+    if (signedIn) loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn()]);
+  }, [signedIn, loadProfile]);
 
   function parseCommaList(raw: string): string[] {
     return raw
@@ -90,7 +90,7 @@ export default function ProfessionalPage() {
     }
   }
 
-  if (!isSignedIn()) {
+  if (!signedIn) {
     return <div style={{ padding: 16 }}><p>Please sign in to manage your professional profile.</p></div>;
   }
 

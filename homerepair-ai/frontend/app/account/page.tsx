@@ -7,7 +7,7 @@
 // through the useHttp wrapper so that JWTs are sent automatically.
 
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useHttp } from '../../src/api/http';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 
@@ -21,12 +21,12 @@ type UserProfile = {
 
 export default function AccountPage() {
   const { post } = useHttp();
-  const { isSignedIn, getToken } = useAccessToken();
+  const { getToken, signedIn } = useAccessToken();
   const [profile, setProfile] = useState<UserProfile>({ displayName: '', contactEmail: '' });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     setMsg(null);
     try {
@@ -41,12 +41,12 @@ export default function AccountPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [getToken]);
 
   useEffect(() => {
-    if (isSignedIn()) loadProfile();
+    if (signedIn) loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn()]);
+  }, [signedIn, loadProfile]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,7 +65,7 @@ export default function AccountPage() {
     }
   }
 
-  if (!isSignedIn()) {
+  if (!signedIn) {
     return <div style={{ padding: 16 }}><p>Please sign in to view your account.</p></div>;
   }
 

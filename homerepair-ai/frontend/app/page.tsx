@@ -7,7 +7,7 @@ import { useAccessToken } from '../src/hooks/useAccessToken'
 type User = { id: string; token?: string } | null
 
 export default function HomePage() {
-  const { isSignedIn, getToken } = useAccessToken();
+  const { signedIn, getToken } = useAccessToken();
   const [user, setUser] = useState<User>(null)
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export default function HomePage() {
       localStorage.setItem('userId', userId)
     }
     async function initUser() {
-      if (isSignedIn()) {
+      if (signedIn) {
         try {
           const token = await getToken()
           setUser({ id: userId, token })
@@ -32,7 +32,7 @@ export default function HomePage() {
     }
     initUser()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn()])
+  }, [signedIn, getToken])
 
   if (!user) {
     return <div>Loading...</div>

@@ -4,7 +4,7 @@
 // accessible when the user is signed in; otherwise prompts for login.
 
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 
 type Item = {
@@ -16,14 +16,14 @@ type Item = {
 };
 
 export default function HistoryPage() {
-  const { isSignedIn, getToken } = useAccessToken();
+  const { signedIn, getToken } = useAccessToken();
   const [items, setItems] = useState<Item[]>([]);
   const [continuation, setContinuation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function loadPage(nextToken?: string | null) {
-    if (!isSignedIn()) return;
+   const loadPage = useCallback(async (nextToken?: string | null) => {
+    if (!signedIn) return;
     setLoading(true);
     setMsg(null);
     try {
@@ -46,16 +46,16 @@ export default function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [getToken, signedIn]);
 
   useEffect(() => {
     setItems([]);
     setContinuation(null);
-    if (isSignedIn()) loadPage(null);
+    if (signedIn) loadPage(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn()]);
+  }, [signedIn, loadPage]);
 
-  if (!isSignedIn()) {
+  if (!signedIn) {
     return <div style={{ padding: 16 }}><p>Please sign in to view your history.</p></div>;
   }
 
