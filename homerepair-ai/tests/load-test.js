@@ -1,7 +1,19 @@
 // scripts/load-test.js
 const axios = require('axios');
 
-const API_BASE = 'https://homerepair-api.azurewebsites.net/api';
+const API_BASE = process.env.API_BASE_URL || 'http://localhost:7071/api';
+const AUTH_TOKEN = process.env.API_BEARER_TOKEN;
+
+if (!AUTH_TOKEN) {
+  console.error('API_BEARER_TOKEN environment variable is required to run the load test.');
+  process.exit(1);
+}
+
+const client = axios.create({
+  baseURL: API_BASE,
+  timeout: 15000,
+  headers: { Authorization: `Bearer ${AUTH_TOKEN}` }
+});
 
 const testQueries = [
   'My oven has burnt stains',
@@ -16,7 +28,7 @@ async function loadTest() {
   
   for (let i = 0; i < 50; i++) {
     const query = testQueries[i % testQueries.length];
-    const promise = axios.post(`${API_BASE}/chat-handler`, {
+    const promise = client.post('/chat-handler', {
       message: query,
       userId: `load-test-user-${i}`
     });

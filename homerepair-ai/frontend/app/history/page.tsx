@@ -7,6 +7,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7071';
+
 type Item = {
   id: string;
   updatedAt?: string;
@@ -22,13 +24,13 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-   const loadPage = useCallback(async (nextToken?: string | null) => {
+  const loadPage = useCallback(async (nextToken?: string | null) => {
     if (!signedIn) return;
     setLoading(true);
     setMsg(null);
     try {
       const token = await getToken();
-      const url = new URL(`${process.env.NEXT_PUBLIC_API_BASE}/api/list-conversations`);
+      const url = new URL(`${API_BASE}/api/list-conversations`);
       url.searchParams.set('limit', '20');
       if (nextToken) url.searchParams.set('continuationToken', nextToken);
       const res = await fetch(url.toString(), {

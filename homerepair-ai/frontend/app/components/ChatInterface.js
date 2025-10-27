@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Camera, Loader } from 'lucide-react';
 import axios from 'axios';
+import { useAccessToken } from '../../src/hooks/useAccessToken';
 
 /**
  * ChatInterface
@@ -36,6 +37,7 @@ const ChatInterface = ({ user }) => {
   const [postcode, setPostcode] = useState('');
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const { getToken } = useAccessToken();
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:7071') + '/api';
 
@@ -48,36 +50,55 @@ const ChatInterface = ({ user }) => {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() && selectedImages.length === 0) return;
-    if (!user) return;
+    if ((!inputMessage.trim() && selectedImages.length === 0) || !user) return;
+
+    const messageToSend = inputMessage;
+    const imagesToSend = [...selectedImages];
+
+    setIsLoading(true);
+
+    let token = null;
+    try {
+      token = await getToken();
+    } catch (authErr) {
+      console.error('Token acquisition failed:', authErr);
+      setIsLoading(false);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Please sign in to continue the conversation.',
+          timestamp: new Date().toISOString(),
+          isError: true
+        }
+      ]);
+      return;
+    }
 
     const userMessage = {
       role: 'user',
-      content: inputMessage,
-      images: selectedImages,
+      content: messageToSend,
+      images: imagesToSend,
       timestamp: new Date().toISOString()
     };
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
-    setIsLoading(true);
 
     try {
-      // Build payload including optional filters
       const body = {
-        message: inputMessage,
+        message: messageToSend,
         conversationId,
         userId: user.id,
-        images: selectedImages,
+        images: imagesToSend,
         category: category || undefined,
         maxPrice: budget ? Number(budget) : undefined,
         location: location || undefined,
         state: stateInput || undefined,
         postcode: postcode || undefined
       };
-      const headers = {};
-      if (user.token) {
-        headers['Authorization'] = `Bearer ${user.token}`;
-      }
+
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const response = await axios.post(`${API_BASE}/chat-handler`, body, { headers });
       const {
         response: aiResponse,
@@ -85,9 +106,11 @@ const ChatInterface = ({ user }) => {
         products,
         professionals
       } = response.data;
+
       if (!conversationId) {
         setConversationId(newConvId);
       }
+
       const assistantMessage = {
         role: 'assistant',
         content: aiResponse,
@@ -99,9 +122,13 @@ const ChatInterface = ({ user }) => {
       setSelectedImages([]);
     } catch (error) {
       console.error('Chat error:', error);
+      const fallback =
+        error?.response?.status === 401
+          ? 'Your session expired. Please sign in again.'
+          : 'Sorry, I encountered an error. Please try again.';
       const errorMessage = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: fallback,
         timestamp: new Date().toISOString(),
         isError: true
       };

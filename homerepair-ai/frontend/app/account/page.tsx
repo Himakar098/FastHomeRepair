@@ -11,6 +11,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useHttp } from '../../src/api/http';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7071';
+
 type UserProfile = {
   id?: string;
   displayName?: string;
@@ -31,7 +33,7 @@ export default function AccountPage() {
     setMsg(null);
     try {
       const token = await getToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/get-profile`, {
+      const res = await fetch(`${API_BASE}/api/get-profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
