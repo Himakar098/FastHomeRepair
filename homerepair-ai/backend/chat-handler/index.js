@@ -267,15 +267,26 @@ module.exports = async function (context, req) {
   context.log('chat-handler triggered');
 
   try {
-    // ------ Auth (RECOMMENDED): require Bearer JWT ------
+        // ------ Auth: optional JWT (required for premium features) ------
     const authz = req.headers['authorization'] || req.headers['Authorization'] || '';
     const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
-    const authResult = await validateJwt(token).catch(() => null);
-    if (!authResult || !authResult.sub) {
-      context.res = { status: 401, headers: corsHeaders, body: { error: 'Unauthorized' } };
-      return;
+    let authResult = null;
+    if (token) {
+      authResult = await validateJwt(token).catch(err => {
+        context.log.warn('JWT validation failed', err?.message);
+        return null;
+      });
     }
-    const userId = authResult.sub; // do not trust arbitrary userId from client
+    const isAuthenticated = !!authResult?.sub;
+    let userId = null;
+    if (isAuthenticated) {
+      userId = authResult.sub;
+    } else {
+      const provided = typeof (req.body && req.body.userId) === 'string' ? req.body.userId.trim() : '';
+      const cleaned = provided.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+      const anonBase = cleaned || uuidv4();
+      userId = `anon:${anonBase}`;
+    }
 
     if (missingOpenAIEnv.length > 0) {
       const details = `Missing required environment variables: ${missingOpenAIEnv.join(', ')}`;
@@ -290,8 +301,9 @@ module.exports = async function (context, req) {
       return;
     }
 
-    const { message, conversationId, images, category, maxPrice } = req.body || {};
-    const locObj = normaliseLocation(req.body || {}); // handles location/state/postcode
+    const body = req.body || {};
+    const { message, conversationId, images, category, maxPrice } = body;
+    const locObj = normaliseLocation(body); // handles location/state/postcode
 
     // basic validation
     if (!message || typeof message !== 'string' || message.length > 5000) {
@@ -301,7 +313,7 @@ module.exports = async function (context, req) {
 
     // If images present, validate & pick first
     let imageAnalysisSummary = null;
-    if (Array.isArray(images) && images.length > 0) {
+    if (isAuthenticated && Array.isArray(images) && images.length > 0) {
       const first = images[0];
       const dataUrl = first?.dataUrl;
       if (isSafeBase64Image(dataUrl)) {
@@ -311,7 +323,6 @@ module.exports = async function (context, req) {
             { imageData: dataUrl, problemContext: message },
             { timeout: 10000 }
           );
-          // keep only minimal, non-sensitive subset
           imageAnalysisSummary = {
             usedFeatures: data?.usedFeatures || [],
             description: data?.analysis?.description || null,
@@ -323,6 +334,8 @@ module.exports = async function (context, req) {
       } else {
         context.log.warn('Rejected image: invalid format or too large');
       }
+    } else if (!isAuthenticated && Array.isArray(images) && images.length > 0) {
+      context.log.warn('Image attachments ignored for anonymous request');
     }
 
     const convId = conversationId || uuidv4();
@@ -337,12 +350,18 @@ module.exports = async function (context, req) {
     });
 
     // Retrieve product/pro suggestions
-    const suggestions = await getProductSuggestions(message, category, maxPrice, locObj);
-    const retrievalContext = formatRetrievalContext(
-      suggestions.products,
-      suggestions.professionals,
-      suggestions.resolvedLocation
-    );
+    let suggestions = { products: [], professionals: [], resolvedLocation: locObj || null };
+    let retrievalContext;
+    if (isAuthenticated) {
+      suggestions = await getProductSuggestions(message, category, maxPrice, locObj);
+      retrievalContext = formatRetrievalContext(
+        suggestions.products,
+        suggestions.professionals,
+        suggestions.resolvedLocation
+      );
+    } else {
+      retrievalContext = 'User is anonymous. Provide general DIY guidance without promising real-time product availability or professional referrals. Encourage signing in for personalised recommendations, live pricing, and pro connections.';
+    }
 
     // Build prompt (include image analysis if any)
     const messages = [
@@ -406,7 +425,8 @@ module.exports = async function (context, req) {
         products: suggestions.products,
         professionals: suggestions.professionals,
         location: suggestions.resolvedLocation || locObj,
-        imageAnalysis: imageAnalysisSummary || null
+        imageAnalysis: imageAnalysisSummary || null,
+        featuresLimited: !isAuthenticated
       }
     };
   } catch (err) {

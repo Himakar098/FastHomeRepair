@@ -153,14 +153,14 @@ const ChatInterface = ({ user }) => {
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="welcome-message">
-            <h2>Welcome to Home Repair AI!</h2>
-            <p>Describe your home repair problem or upload photos, and I'll help you find the best solution.</p>
+            <h2>Welcome to Home Assistant!</h2>
+            <p>Describe your home problem or upload photos, and I'll help you find the best solution.</p>
             <div className="example-questions">
               <h3>Try asking:</h3>
               <ul>
                 <li>"My oven has stubborn stains, how can I clean it?"</li>
                 <li>"There's a small hole in my wall, can I fix it myself?"</li>
-                <li>"My kitchen benchtop is damaged, what are my options?"</li>
+                <li>"I want to move my furniture. Whom should I hire?"</li>
               </ul>
             </div>
           </div>

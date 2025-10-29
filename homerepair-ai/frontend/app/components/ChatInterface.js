@@ -37,13 +37,41 @@ const ChatInterface = ({ user }) => {
   const [postcode, setPostcode] = useState('');
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const { getToken } = useAccessToken();
+  const { getToken, signedIn } = useAccessToken();
+  const [authToken, setAuthToken] = useState(null);
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:7071') + '/api';
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!signedIn) {
+      setSelectedImages([]);
+    }
+  }, [signedIn]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refreshToken() {
+      if (signedIn) {
+        try {
+          const token = await getToken();
+          if (!cancelled) setAuthToken(token || null);
+        } catch (err) {
+          console.error('Token refresh failed:', err);
+          if (!cancelled) setAuthToken(null);
+        }
+      } else {
+        setAuthToken(null);
+      }
+    }
+    refreshToken();
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn, getToken]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -55,26 +83,6 @@ const ChatInterface = ({ user }) => {
     const messageToSend = inputMessage;
     const imagesToSend = [...selectedImages];
 
-    setIsLoading(true);
-
-    let token = null;
-    try {
-      token = await getToken();
-    } catch (authErr) {
-      console.error('Token acquisition failed:', authErr);
-      setIsLoading(false);
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: 'Please sign in to continue the conversation.',
-          timestamp: new Date().toISOString(),
-          isError: true
-        }
-      ]);
-      return;
-    }
-
     const userMessage = {
       role: 'user',
       content: messageToSend,
@@ -83,9 +91,21 @@ const ChatInterface = ({ user }) => {
     };
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
+    setIsLoading(true);
+
+    let token = authToken;
+    if (signedIn && !token) {
+      try {
+        token = await getToken();
+        setAuthToken(token || null);
+      } catch (err) {
+        console.error('Token refresh failed:', err);
+        token = null;
+      }
+    }
 
     try {
-      const body = {
+      const payload = {
         message: messageToSend,
         conversationId,
         userId: user.id,
@@ -99,12 +119,13 @@ const ChatInterface = ({ user }) => {
 
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      const response = await axios.post(`${API_BASE}/chat-handler`, body, { headers });
+      const response = await axios.post(`${API_BASE}/chat-handler`, payload, { headers });
       const {
         response: aiResponse,
         conversationId: newConvId,
         products,
-        professionals
+        professionals,
+        featuresLimited
       } = response.data;
 
       if (!conversationId) {
@@ -116,7 +137,8 @@ const ChatInterface = ({ user }) => {
         content: aiResponse,
         timestamp: new Date().toISOString(),
         products,
-        professionals
+        professionals,
+        featuresLimited: !!featuresLimited
       };
       setMessages(prev => [...prev, assistantMessage]);
       setSelectedImages([]);
@@ -124,7 +146,7 @@ const ChatInterface = ({ user }) => {
       console.error('Chat error:', error);
       const fallback =
         error?.response?.status === 401
-          ? 'Your session expired. Please sign in again.'
+          ? 'Your session expired. Please sign in for full features.'
           : 'Sorry, I encountered an error. Please try again.';
       const errorMessage = {
         role: 'assistant',
@@ -179,6 +201,11 @@ const ChatInterface = ({ user }) => {
 
   return (
     <div className="chat-interface">
+      {!signedIn && (
+        <div className="auth-banner">
+          <strong>Tip:</strong> Sign in to unlock product suggestions, professional referrals, and image analysis.
+        </div>
+      )}
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="welcome-message">
@@ -208,6 +235,11 @@ const ChatInterface = ({ user }) => {
               <div className="message-text">
                 {message.content}
               </div>
+              {message.featuresLimited && (
+                <div className="limited-note">
+                  Sign in to unlock product recommendations, professional referrals, and detailed image analysis.
+                </div>
+              )}
               {message.products && message.products.length > 0 && (
                 <div className="recommended-products">
                   <h4>Recommended Products:</h4>
@@ -323,7 +355,8 @@ const ChatInterface = ({ user }) => {
           <button
             className="image-upload-btn"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
+            disabled={isLoading || !signedIn}
+            title={signedIn ? 'Attach photos' : 'Sign in to upload images'}
           >
             <Camera size={20} />
           </button>

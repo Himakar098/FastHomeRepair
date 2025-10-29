@@ -8,11 +8,11 @@
 import { useAccessToken } from '../hooks/useAccessToken';
 
 export default function AuthButtons() {
-  const { signedIn, logout, getToken } = useAccessToken();
+  const { signedIn, logout, login } = useAccessToken();
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       {!signedIn ? (
-        <button onClick={() => getToken()}>Sign in</button>
+        <button onClick={async () => { try { await login(); } catch (err) { console.error("Sign-in failed", err); } }}>Sign in</button>
       ) : (
         <button onClick={logout}>Sign out</button>
       )}

@@ -32,7 +32,10 @@ export default function AccountPage() {
     setLoading(true);
     setMsg(null);
     try {
-      const token = await getToken();
+      const token = await getToken({ forceLogin: true });
+      if (!token) {
+        throw new Error('No auth token');
+      }
       const res = await fetch(`${API_BASE}/api/get-profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });

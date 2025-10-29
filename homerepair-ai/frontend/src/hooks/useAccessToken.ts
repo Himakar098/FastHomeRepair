@@ -9,32 +9,48 @@ import { useCallback } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '../auth/msalConfig';
 
+type GetTokenOptions = {
+  forceLogin?: boolean;
+};
+
 export function useAccessToken() {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
   const signedIn = !!account;
 
-  // Acquire a token, prompting the user if necessary
-  const getToken = useCallback(async () => {
-    if (!account) {
-      const login = await instance.loginPopup(loginRequest);
-      return login.accessToken;
-    }
-    try {
-      const res = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account
-      });
-      return res.accessToken;
-    } catch {
-      const res = await instance.acquireTokenPopup(loginRequest);
-      return res.accessToken;
-    }
-  }, [instance, account]);
+  const login = useCallback(async () => {
+    const res = await instance.loginPopup(loginRequest);
+    return res.accessToken;
+  }, [instance]);
+
+  const getToken = useCallback(
+    async (options: GetTokenOptions = {}) => {
+      if (!account) {
+        if (options.forceLogin) {
+          return login();
+        }
+        return null;
+      }
+      try {
+        const res = await instance.acquireTokenSilent({
+          ...loginRequest,
+          account
+        });
+        return res.accessToken;
+      } catch {
+        const res = await instance.acquireTokenPopup({
+          ...loginRequest,
+          account
+        });
+        return res.accessToken;
+      }
+    },
+    [account, instance, login]
+  );
 
   const logout = useCallback(() => {
     instance.logoutPopup();
   }, [instance]);
 
-  return { getToken, logout, signedIn };
+  return { getToken, login, logout, signedIn };
 }

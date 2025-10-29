@@ -35,6 +35,16 @@
   height: calc(100vh - 200px);
 }
 
+.auth-banner {
+  background: #fff4d6;
+  border: 1px solid #f4c36b;
+  color: #8a5a15;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 1rem;
+  font-size: 0.9rem;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -133,6 +143,15 @@
 .message-text {
   white-space: pre-wrap;
   line-height: 1.6;
+}
+
+.limited-note {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #eef2ff;
+  border-radius: 8px;
+  color: #384079;
+  font-size: 0.85rem;
 }
 
 .recommended-products,

@@ -20,7 +20,10 @@ export function useHttp() {
   });
 
   async function post<T = any>(url: string, data?: any) {
-    const token = await getToken();
+    const token = await getToken({ forceLogin: true });
+    if (!token) {
+      throw new Error('Authentication required');
+    }
     return client.post<T>(url, data, {
       headers: { Authorization: `Bearer ${token}` }
     });

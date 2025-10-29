@@ -29,7 +29,10 @@ export default function HistoryPage() {
     setLoading(true);
     setMsg(null);
     try {
-      const token = await getToken();
+      const token = await getToken({ forceLogin: true });
+      if (!token) {
+        throw new Error('No auth token');
+      }
       const url = new URL(`${API_BASE}/api/list-conversations`);
       url.searchParams.set('limit', '20');
       if (nextToken) url.searchParams.set('continuationToken', nextToken);

@@ -37,7 +37,10 @@ export default function ProfessionalPage() {
     setLoading(true);
     setMsg(null);
     try {
-      const token = await getToken();
+      const token = await getToken({ forceLogin: true });
+      if (!token) {
+        throw new Error('No auth token');
+      }
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/get-profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
