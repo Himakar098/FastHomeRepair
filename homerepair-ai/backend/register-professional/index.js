@@ -45,6 +45,23 @@ function concatServices(services) {
     .join(',');
 }
 
+function normaliseList(value, max = 20) {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => (typeof v === 'string' ? v.trim() : ''))
+      .filter(Boolean)
+      .slice(0, max);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .slice(0, max);
+  }
+  return [];
+}
+
 module.exports = async function (context, req) {
   if (req.method === 'OPTIONS') {
     context.res = { status: 204, headers: corsHeaders };
@@ -82,9 +99,21 @@ module.exports = async function (context, req) {
     state,
     serviceAreas,
     abn,
-    services
+    services,
+    tradeQualifications,
+    certifications,
+    yearsExperience,
+    licenceNumbers,
+    insuranceProvider,
+    insurancePolicyNumber,
+    insuranceExpiry
   } = req.body || {};
-  if (!businessName || typeof businessName !== 'string' || businessName.length > 150) {
+  const businessNameClean = typeof businessName === 'string' ? businessName.trim() : '';
+  const websiteClean = typeof website === 'string' ? website.trim() : '';
+  const abnDigits = typeof abn === 'string' ? abn.replace(/\s/g, '') : '';
+  const insuranceName = typeof insuranceProvider === 'string' ? insuranceProvider.trim() : '';
+  const phoneClean = typeof phone === 'string' ? phone.trim() : '';
+  if (!businessNameClean || businessNameClean.length > 150) {
     context.res = {
       status: 400,
       headers: corsHeaders,
@@ -101,14 +130,76 @@ module.exports = async function (context, req) {
     };
     return;
   }
-  const areas = Array.isArray(serviceAreas)
-    ? serviceAreas.filter((a) => typeof a === 'string' && a.trim()).slice(0, 20)
-    : [];
-  const serviceList = Array.isArray(services)
-    ? services.filter((s) => typeof s === 'string' && s.trim()).slice(0, 20)
-    : [];
+  const areas = normaliseList(serviceAreas);
+  if (areas.length === 0) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'Provide at least one service area' }
+    };
+    return;
+  }
 
-  if (phone && !/^[0-9+ ]{6,20}$/.test(phone)) {
+  const serviceList = normaliseList(services);
+  if (serviceList.length === 0) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'Provide at least one service offered' }
+    };
+    return;
+  }
+
+  const qualificationList = normaliseList(tradeQualifications);
+  if (qualificationList.length === 0) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'At least one trade qualification is required' }
+    };
+    return;
+  }
+
+  const certificationList = normaliseList(certifications);
+  if (certificationList.length === 0) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'At least one certification is required' }
+    };
+    return;
+  }
+
+  const licenceList = normaliseList(licenceNumbers || []);
+  if (licenceList.length === 0) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'At least one licence number is required' }
+    };
+    return;
+  }
+
+  const years = Number(yearsExperience);
+  if (!Number.isFinite(years) || years < 1 || years > 80) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'yearsExperience must be between 1 and 80' }
+    };
+    return;
+  }
+
+  if (!insuranceName || insuranceName.length < 2) {
+    context.res = {
+      status: 400,
+      headers: corsHeaders,
+      body: { error: 'insuranceProvider is required' }
+    };
+    return;
+  }
+
+  if (phoneClean && !/^[0-9+ ]{6,20}$/.test(phoneClean)) {
     context.res = {
       status: 400,
       headers: corsHeaders,
@@ -116,7 +207,7 @@ module.exports = async function (context, req) {
     };
     return;
   }
-  if (website && !/^https?:\/\/[\S]+$/i.test(website)) {
+  if (!websiteClean || !/^https?:\/\/[\S]+$/i.test(websiteClean)) {
     context.res = {
       status: 400,
       headers: corsHeaders,
@@ -124,7 +215,7 @@ module.exports = async function (context, req) {
     };
     return;
   }
-  if (abn && !/^\d{11}$/.test(abn.replace(/\s/g, ''))) {
+  if (!abnDigits || !/^\d{11}$/.test(abnDigits)) {
     context.res = {
       status: 400,
       headers: corsHeaders,
@@ -140,21 +231,33 @@ module.exports = async function (context, req) {
   const item = {
     id: sub, // owner is always the signed-in user
     ownerId: sub,
-    businessName,
-    phone: phone || null,
-    website: website || null,
+    businessName: businessNameClean,
+    phone: phoneClean || null,
+    website: websiteClean,
     state: stateCode,
     serviceAreas: areas,
     services: serviceList,
     servicesConcat: concatServices(serviceList),
-    abn: abn || null,
+    abn: abnDigits,
+    tradeQualifications: qualificationList,
+    certifications: certificationList,
+    licenceNumbers: licenceList,
+    yearsExperience: Math.round(years),
+    insuranceProvider: insuranceName,
+    insurancePolicyNumber: typeof insurancePolicyNumber === 'string' ? insurancePolicyNumber.trim() || null : null,
+    insuranceExpiry: typeof insuranceExpiry === 'string' ? insuranceExpiry.trim() || null : null,
     updatedAt: now,
-    createdAt: now
+    createdAt: now,
+    verificationStatus: 'pending_review'
   };
 
   try {
     const existing = await pros.item(sub, sub).read().catch(() => null);
-    if (existing?.resource?.createdAt) item.createdAt = existing.resource.createdAt;
+    if (existing?.resource) {
+      if (existing.resource.createdAt) item.createdAt = existing.resource.createdAt;
+      if (existing.resource.verificationStatus) item.verificationStatus = existing.resource.verificationStatus;
+      if (existing.resource.reviewNotes) item.reviewNotes = existing.resource.reviewNotes;
+    }
 
     await pros.items.upsert(item, { partitionKey: sub });
     context.res = {

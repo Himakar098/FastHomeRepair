@@ -131,15 +131,18 @@ async function getProductSuggestions(problem, category, maxPrice, locObj) {
     return {
       products: Array.isArray(data?.products) ? data.products : [],
       professionals: Array.isArray(data?.professionals) ? data.professionals : [],
+      realtimeResults: Array.isArray(data?.realtimeResults) ? data.realtimeResults : [],
+      realtimeProducts: Array.isArray(data?.realtimeProducts) ? data.realtimeProducts : [],
+      realtimeProfessionals: Array.isArray(data?.realtimeProfessionals) ? data.realtimeProfessionals : [],
       resolvedLocation: data?.location || locObj || null
     };
   } catch (err) {
     console.error('product-matcher call failed:', err?.message);
-    return { products: [], professionals: [], resolvedLocation: locObj || null };
+    return { products: [], professionals: [], realtimeResults: [], realtimeProducts: [], realtimeProfessionals: [], resolvedLocation: locObj || null };
   }
 }
 
-function formatRetrievalContext(products = [], professionals = [], locObj = null) {
+function formatRetrievalContext(products = [], professionals = [], realtimeResults = [], locObj = null) {
   const header = locObj?.state || locObj?.city || locObj?.raw
     ? `User location (parsed): ${[locObj?.city, locObj?.state, locObj?.postcode].filter(Boolean).join(' ')}`
     : 'User location: (not provided)';
@@ -161,6 +164,13 @@ function formatRetrievalContext(products = [], professionals = [], locObj = null
     return `• ${name} — areas: ${areas}${pro.state ? ` — ${pro.state}` : ''}`;
   });
 
+  const realtimeBullets = realtimeResults.slice(0, 3).map(res => {
+    const label = res.type && res.type !== 'general' ? res.type.toUpperCase() : 'RESULT';
+    const summary = res.snippet ? res.snippet : 'No summary available';
+    const link = res.link || '';
+    return `• [${label}] ${res.title || 'Result'} — ${summary}${link ? ` — ${link}` : ''}`;
+  });
+
   const supplierHint = products.length === 0
     ? 'No supplier matches were found in the index. Provide generic guidance and ask the user for their suburb/state to refine.'
     : 'Stock/price may vary by store/region; links are indicative for Australia.';
@@ -172,6 +182,9 @@ ${productBullets.length ? productBullets.join('\n') : '• (no matches found)'}
 
 Professionals (if needed):
 ${proBullets.length ? proBullets.join('\n') : '• (no matches found)'}
+
+Live web results (Google CSE):
+${realtimeBullets.length ? realtimeBullets.join('\n') : '• (no live web results)'}
 
 Supplier hint: ${supplierHint}`;
 }
@@ -350,13 +363,21 @@ module.exports = async function (context, req) {
     });
 
     // Retrieve product/pro suggestions
-    let suggestions = { products: [], professionals: [], resolvedLocation: locObj || null };
+    let suggestions = {
+      products: [],
+      professionals: [],
+      realtimeResults: [],
+      realtimeProducts: [],
+      realtimeProfessionals: [],
+      resolvedLocation: locObj || null
+    };
     let retrievalContext;
     if (isAuthenticated) {
       suggestions = await getProductSuggestions(message, category, maxPrice, locObj);
       retrievalContext = formatRetrievalContext(
         suggestions.products,
         suggestions.professionals,
+        suggestions.realtimeResults,
         suggestions.resolvedLocation
       );
     } else {
@@ -424,6 +445,9 @@ module.exports = async function (context, req) {
         estimatedCostHint: costSample,
         products: suggestions.products,
         professionals: suggestions.professionals,
+        realtimeResults: suggestions.realtimeResults,
+        realtimeProducts: suggestions.realtimeProducts,
+        realtimeProfessionals: suggestions.realtimeProfessionals,
         location: suggestions.resolvedLocation || locObj,
         imageAnalysis: imageAnalysisSummary || null,
         featuresLimited: !isAuthenticated

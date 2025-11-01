@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Camera, Loader } from 'lucide-react';
 import { useHttp } from '../api/http';
+import { useAccessToken } from '../hooks/useAccessToken';
 
 /**
  * ChatInterface
@@ -25,6 +26,7 @@ import { useHttp } from '../api/http';
  */
 const ChatInterface = ({ user }) => {
   const { post } = useHttp();
+  const { signedIn } = useAccessToken();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +83,10 @@ const ChatInterface = ({ user }) => {
         response: aiResponse,
         conversationId: newConvId,
         products,
-        professionals
+        professionals,
+        realtimeResults,
+        realtimeProducts,
+        realtimeProfessionals
       } = response.data;
       if (!conversationId) {
         setConversationId(newConvId);
@@ -91,7 +96,10 @@ const ChatInterface = ({ user }) => {
         content: aiResponse,
         timestamp: new Date().toISOString(),
         products,
-        professionals
+        professionals,
+        realtimeResults,
+        realtimeProducts,
+        realtimeProfessionals
       };
       setMessages(prev => [...prev, assistantMessage]);
       setSelectedImages([]);
@@ -148,8 +156,29 @@ const ChatInterface = ({ user }) => {
     return 'N/A';
   };
 
+  const formatResultType = (type) => {
+    if (!type || type === 'general') return 'General';
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
   return (
     <div className="chat-interface">
+      <div
+        className="premium-banner"
+        style={{
+          marginBottom: 12,
+          padding: '12px 16px',
+          backgroundColor: '#f5f8ff',
+          border: '1px solid #d0dcff',
+          borderRadius: 8,
+          fontSize: 14,
+          lineHeight: 1.4
+        }}
+      >
+        {signedIn
+          ? 'Live web search results, real-time pricing and image analysis are active on your account.'
+          : 'Sign in to unlock live web search results, professional referrals and AI image analysis.'}
+      </div>
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="welcome-message">
@@ -217,6 +246,26 @@ const ChatInterface = ({ user }) => {
                             {pro.website}
                           </a>
                         </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {message.realtimeResults && message.realtimeResults.length > 0 && (
+                <div className="realtime-results">
+                  <h4>Live Web Results:</h4>
+                  {message.realtimeResults.slice(0, 3).map((result, resultIndex) => (
+                    <div
+                      key={result.id || result.link || resultIndex}
+                      className="realtime-result-card"
+                    >
+                      <h5>{result.title}</h5>
+                      <p>Type: {formatResultType(result.type)}</p>
+                      {result.snippet && <p>{result.snippet}</p>}
+                      {result.link && (
+                        <a href={result.link} target="_blank" rel="noopener noreferrer">
+                          {result.displayLink || result.link}
+                        </a>
                       )}
                     </div>
                   ))}
@@ -294,7 +343,8 @@ const ChatInterface = ({ user }) => {
           <button
             className="image-upload-btn"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
+            disabled={isLoading || !signedIn}
+            title={signedIn ? 'Upload a photo for analysis' : 'Sign in to enable photo analysis'}
           >
             <Camera size={20} />
           </button>

@@ -11,6 +11,14 @@ type ProProfile = {
   serviceAreas?: string[];
   services?: string[];
   abn?: string | null;
+  tradeQualifications?: string[];
+  certifications?: string[];
+  licenceNumbers?: string[];
+  yearsExperience?: number | null;
+  insuranceProvider?: string | null;
+  insurancePolicyNumber?: string | null;
+  insuranceExpiry?: string | null;
+  verificationStatus?: string;
 };
 
 const STATES = ['NSW','VIC','QLD','WA','SA','TAS','NT','ACT'];
@@ -27,13 +35,32 @@ const STATES = ['NSW','VIC','QLD','WA','SA','TAS','NT','ACT'];
 export default function ProfessionalPage() {
   const { post } = useHttp();
   const { signedIn, getToken } = useAccessToken();
-  const [profile, setProfile] = useState<ProProfile>({ businessName: '', state: 'QLD', serviceAreas: [], services: [] });
+  const [profile, setProfile] = useState<ProProfile>({
+    businessName: '',
+    state: 'QLD',
+    serviceAreas: [],
+    services: [],
+    tradeQualifications: [],
+    certifications: [],
+    licenceNumbers: [],
+    yearsExperience: 1,
+    insuranceProvider: '',
+    insurancePolicyNumber: '',
+    insuranceExpiry: ''
+  });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [areasInput, setAreasInput] = useState('');
   const [servicesInput, setServicesInput] = useState('');
+  const [qualificationsInput, setQualificationsInput] = useState('');
+  const [certificationsInput, setCertificationsInput] = useState('');
+  const [licenceInput, setLicenceInput] = useState('');
+  const [experienceInput, setExperienceInput] = useState('1');
+  const [insuranceProviderInput, setInsuranceProviderInput] = useState('');
+  const [insurancePolicyInput, setInsurancePolicyInput] = useState('');
+  const [insuranceExpiryInput, setInsuranceExpiryInput] = useState('');
 
-   const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     setMsg(null);
     try {
@@ -49,6 +76,13 @@ export default function ProfessionalPage() {
         setProfile({ ...data.professional });
         setAreasInput((data.professional.serviceAreas || []).join(', '));
         setServicesInput((data.professional.services || []).join(', '));
+        setQualificationsInput((data.professional.tradeQualifications || []).join(', '));
+        setCertificationsInput((data.professional.certifications || []).join(', '));
+        setLicenceInput((data.professional.licenceNumbers || []).join(', '));
+        setExperienceInput(data.professional.yearsExperience ? String(data.professional.yearsExperience) : '');
+        setInsuranceProviderInput(data.professional.insuranceProvider || '');
+        setInsurancePolicyInput(data.professional.insurancePolicyNumber || '');
+        setInsuranceExpiryInput(data.professional.insuranceExpiry || '');
       }
     } catch (e: any) {
       setMsg('Failed to load professional profile');
@@ -76,13 +110,20 @@ export default function ProfessionalPage() {
     setMsg(null);
     try {
       const body = {
-        businessName: profile.businessName,
-        phone: profile.phone || undefined,
-        website: profile.website || undefined,
+        businessName: profile.businessName?.trim(),
+        phone: profile.phone ? profile.phone.trim() : undefined,
+        website: profile.website ? profile.website.trim() : undefined,
         state: profile.state,
         serviceAreas: parseCommaList(areasInput),
         services: parseCommaList(servicesInput),
-        abn: profile.abn || undefined
+        tradeQualifications: parseCommaList(qualificationsInput),
+        certifications: parseCommaList(certificationsInput),
+        licenceNumbers: parseCommaList(licenceInput),
+        yearsExperience: experienceInput ? Number(experienceInput) : undefined,
+        insuranceProvider: insuranceProviderInput.trim(),
+        insurancePolicyNumber: insurancePolicyInput ? insurancePolicyInput.trim() : undefined,
+        insuranceExpiry: insuranceExpiryInput || undefined,
+        abn: profile.abn ? profile.abn.replace(/\s+/g, '') : undefined
       };
       await post('/api/register-professional', body);
       setMsg('Saved!');
@@ -100,6 +141,12 @@ export default function ProfessionalPage() {
   return (
     <div style={{ padding: 16, maxWidth: 640 }}>
       <h2>Professional Profile</h2>
+      <p style={{ marginBottom: 16 }}>
+        HomeRepairAI verifies every professional application. To protect homeowners, we require
+        evidence of Australian trade qualifications, current certifications, valid licences,
+        years of experience and active insurance coverage. Profiles remain in
+        <strong> pending review</strong> until our team confirms these details.
+      </p>
       <form onSubmit={onSubmit}>
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="businessName">Business name</label><br />
@@ -134,6 +181,7 @@ export default function ProfessionalPage() {
             value={areasInput}
             onChange={(e) => setAreasInput(e.target.value)}
             placeholder="Brisbane CBD, South Brisbane, Fortitude Valley"
+            required
           />
         </div>
         <div style={{ marginBottom: 12 }}>
@@ -145,6 +193,56 @@ export default function ProfessionalPage() {
             value={servicesInput}
             onChange={(e) => setServicesInput(e.target.value)}
             placeholder="plumbing, carpentry, painting"
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="qualifications">Trade qualifications (comma-separated)</label><br />
+          <input
+            id="qualifications"
+            name="qualifications"
+            type="text"
+            value={qualificationsInput}
+            onChange={(e) => setQualificationsInput(e.target.value)}
+            placeholder="Certificate III in Plumbing, QBCC Qualified Supervisor"
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="certifications">Certifications / memberships (comma-separated)</label><br />
+          <input
+            id="certifications"
+            name="certifications"
+            type="text"
+            value={certificationsInput}
+            onChange={(e) => setCertificationsInput(e.target.value)}
+            placeholder="Master Plumbers QLD, Working at Heights"
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="licences">Licence numbers (comma-separated)</label><br />
+          <input
+            id="licences"
+            name="licences"
+            type="text"
+            value={licenceInput}
+            onChange={(e) => setLicenceInput(e.target.value)}
+            placeholder="QBCC 1234567, ARCtick AU98765"
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="experience">Years of experience</label><br />
+          <input
+            id="experience"
+            name="experience"
+            type="number"
+            min={1}
+            max={80}
+            value={experienceInput}
+            onChange={(e) => setExperienceInput(e.target.value)}
+            required
           />
         </div>
         <div style={{ marginBottom: 12 }}>
@@ -167,6 +265,40 @@ export default function ProfessionalPage() {
             value={profile.website || ''}
             onChange={(e) => setProfile(p => ({ ...p, website: e.target.value }))}
             placeholder="https://example.com"
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="insuranceProvider">Insurance provider (public liability)</label><br />
+          <input
+            id="insuranceProvider"
+            name="insuranceProvider"
+            type="text"
+            value={insuranceProviderInput}
+            onChange={(e) => setInsuranceProviderInput(e.target.value)}
+            placeholder="QBE Insurance"
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="insurancePolicy">Insurance policy number (optional)</label><br />
+          <input
+            id="insurancePolicy"
+            name="insurancePolicy"
+            type="text"
+            value={insurancePolicyInput}
+            onChange={(e) => setInsurancePolicyInput(e.target.value)}
+            placeholder="POL-1234567"
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="insuranceExpiry">Insurance expiry (YYYY-MM, optional)</label><br />
+          <input
+            id="insuranceExpiry"
+            name="insuranceExpiry"
+            type="month"
+            value={insuranceExpiryInput}
+            onChange={(e) => setInsuranceExpiryInput(e.target.value)}
           />
         </div>
         <div style={{ marginBottom: 12 }}>
@@ -178,8 +310,14 @@ export default function ProfessionalPage() {
             value={profile.abn || ''}
             onChange={(e) => setProfile(p => ({ ...p, abn: e.target.value }))}
             placeholder="12345678901"
+            required
           />
         </div>
+        {profile.verificationStatus && (
+          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f2f6ff', border: '1px solid #d0dcff', borderRadius: 4 }}>
+            <strong>Status:</strong> {profile.verificationStatus === 'approved' ? 'Approved' : profile.verificationStatus.replace('_', ' ')}
+          </div>
+        )}
         <button type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save'}</button>
       </form>
       {msg && <p style={{ marginTop: 12 }}>{msg}</p>}

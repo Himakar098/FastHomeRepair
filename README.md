@@ -10,9 +10,9 @@ An AI‑powered assistant for diagnosing home maintenance issues, recommending D
 
 **Product & professional matching** – A search function queries an Azure Cognitive Search index and a Cosmos DB database to find relevant products (e.g. from Bunnings) and professionals near the user. The location parser extracts suburb, state and postcode from free‑form input to filter results.
 
-Real‑time web fallback – If no products or professionals are found in the index, the backend scrapes the Bunnings website and DuckDuckGo results for the user’s query to provide up‑to‑date suggestions. These items are merged into the response.
+**Real‑time web fallback** – If no products or professionals are found in the index, the backend scrapes the Bunnings website and DuckDuckGo results for the user’s query to provide up‑to‑date suggestions. These items are merged into the response.
 
-Authentication – The app uses Azure AD B2C via MSAL. A sign‑in/out button appears in the header; authenticated users can chat, view their conversation history, and manage their account. An anonymous ID is generated for unauthenticated visitors.
+**Authentication** – The app uses Azure AD B2C via MSAL. A sign‑in/out button appears in the header; authenticated users can chat, view their conversation history, and manage their account. An anonymous ID is generated for unauthenticated visitors.
 
 Professional registration – Tradespeople can register their business, service areas and services. Their records include a servicesConcat field for searchability. Seed scripts and registration forms populate the database.
 

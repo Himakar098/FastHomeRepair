@@ -4,6 +4,39 @@ const { CosmosClient } = require('@azure/cosmos');
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+const GOOGLE_SEARCH_KEY = process.env.GOOGLE_SEARCH_KEY;
+const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
+const hasGoogleSearch = Boolean(GOOGLE_SEARCH_KEY && GOOGLE_SEARCH_CX);
+
+const REALTIME_PRODUCT_HOSTS = [
+  'bunnings',
+  'mitre10',
+  'ikea',
+  'amazon',
+  'ebay',
+  'officeworks',
+  'totaltools',
+  'supercheapauto',
+  'repcotrade',
+  'repcobusiness',
+  'toolmart',
+  'autobarn'
+];
+
+const REALTIME_PRO_HOSTS = [
+  'hipages',
+  'airtasker',
+  'jimsmowing',
+  'jimscleaning',
+  'jimsgroup',
+  'serviceseeking',
+  'oneflare',
+  'localsearch',
+  'service.com.au',
+  'urbancompany',
+  'fixitfaster'
+];
+
 const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
 const corsHeaders = {
   'Access-Control-Allow-Origin': allowedOrigin,
@@ -207,6 +240,10 @@ module.exports = async function (context, req) {
       context.log.warn('Fallback search error:', err.message);
     }
 
+    const realtimeResults = await fetchRealtimeResults(problem, userLoc, {
+      serviceHint: extractServiceType(problem)
+    });
+
     context.res = {
       status: 200,
       headers: corsHeaders,
@@ -215,7 +252,10 @@ module.exports = async function (context, req) {
         professionals: [...professionals.map(toProfessionalSchema), ...fallbackPros.map(toProfessionalSchema)],
         location: userLoc,
         searchQuery: problem,
-        totalResults: searchResults.length
+        totalResults: searchResults.length,
+        realtimeResults,
+        realtimeProducts: realtimeResults.filter((r) => r.type === 'product'),
+        realtimeProfessionals: realtimeResults.filter((r) => r.type === 'professional')
       }
     };
   } catch (error) {
@@ -459,6 +499,92 @@ function pickNumber(a, b) {
 }
 function cryptoRandomId() {
   return Math.random().toString(36).slice(2);
+}
+
+// ---------------------- Google Custom Search ----------------------
+async function fetchRealtimeResults(problem, userLoc, options = {}) {
+  if (!hasGoogleSearch) return [];
+  const queryParts = [];
+  const userQuery = String(problem || '').trim();
+  if (userQuery) queryParts.push(userQuery);
+
+  const locationTokens = [];
+  if (userLoc?.city) locationTokens.push(userLoc.city);
+  if (userLoc?.state) locationTokens.push(userLoc.state);
+  if (userLoc?.postcode) locationTokens.push(String(userLoc.postcode));
+  if (locationTokens.length) {
+    queryParts.push(locationTokens.join(' '));
+  }
+
+  const serviceHint = options.serviceHint;
+  if (serviceHint && serviceHint !== 'general_maintenance' && !userQuery.includes(serviceHint)) {
+    queryParts.push(serviceHint.replace(/_/g, ' '));
+  }
+
+  const query = queryParts.join(' ').trim();
+  if (!query) return [];
+
+  try {
+    const { data } = await axios.get('https://www.googleapis.com/customsearch/v1', {
+      params: {
+        key: GOOGLE_SEARCH_KEY,
+        cx: GOOGLE_SEARCH_CX,
+        q: query,
+        num: 5,
+        gl: 'au',
+        lr: 'lang_en',
+        cr: 'countryAU',
+        safe: 'active'
+      },
+      timeout: 8000
+    });
+
+    const items = Array.isArray(data?.items) ? data.items : [];
+    return items
+      .map(normalizeRealtimeItem)
+      .filter(Boolean)
+      .slice(0, 3);
+  } catch (err) {
+    console.warn('Google Custom Search failed:', err?.message || err);
+    return [];
+  }
+}
+
+function normalizeRealtimeItem(item) {
+  if (!item || !item.link || !item.title) return null;
+  const snippet = stripHtml(item.snippet || item.htmlSnippet || '');
+  const hostname = parseHostname(item.link);
+  return {
+    id: item.cacheId || item.link,
+    title: item.title,
+    link: item.link,
+    displayLink: item.displayLink || hostname,
+    snippet,
+    type: classifyRealtimeResult(hostname, snippet),
+    source: 'google'
+  };
+}
+
+function classifyRealtimeResult(hostname, snippet) {
+  const host = String(hostname || '').toLowerCase();
+  const text = String(snippet || '').toLowerCase();
+  if (REALTIME_PRODUCT_HOSTS.some((token) => host.includes(token))) return 'product';
+  if (REALTIME_PRO_HOSTS.some((token) => host.includes(token))) return 'professional';
+  if (/\b(buy|price|shop|product|kit|pack|store)\b/.test(text)) return 'product';
+  if (/\b(hire|service|plumber|electrician|technician|contractor|repair|tradie)\b/.test(text)) return 'professional';
+  return 'general';
+}
+
+function parseHostname(link) {
+  try {
+    return new URL(link).hostname;
+  } catch {
+    return '';
+  }
+}
+
+function stripHtml(input = '') {
+  return String(input).replace(/<[^>]+>/g, '');
 }
 
 // ------------------------------------------------------------------------

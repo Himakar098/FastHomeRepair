@@ -40,14 +40,39 @@ module.exports = async function (context, req) {
   }
 
   // Validate body
-  const { displayName, contactEmail } = req.body || {};
-  if (!displayName || typeof displayName !== 'string' || displayName.length > 100) {
-    context.res = { status: 400, headers: corsHeaders, body: { error: 'displayName is required (<=100 chars)' } };
+  const {
+    preferredUsername,
+    displayName,
+    contactEmail,
+    mobileNumber
+  } = req.body || {};
+
+  const usernameCandidates = [preferredUsername, displayName].filter(v => typeof v === 'string' && v.trim());
+  const username = usernameCandidates.length ? usernameCandidates[0].trim() : '';
+  if (!username || username.length > 100) {
+    context.res = { status: 400, headers: corsHeaders, body: { error: 'preferredUsername is required (<=100 chars)' } };
     return;
   }
-  if (contactEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail)) {
-    context.res = { status: 400, headers: corsHeaders, body: { error: 'contactEmail invalid' } };
+
+  const emailClaims = [];
+  if (contactEmail) emailClaims.push(contactEmail);
+  if (Array.isArray(claims?.emails)) emailClaims.push(...claims.emails);
+  if (claims?.email) emailClaims.push(claims.email);
+  if (claims?.preferred_username) emailClaims.push(claims.preferred_username);
+  const email = emailClaims.find(e => typeof e === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) || null;
+  if (!email) {
+    context.res = { status: 400, headers: corsHeaders, body: { error: 'A valid email address is required' } };
     return;
+  }
+
+  let mobile = null;
+  if (typeof mobileNumber === 'string' && mobileNumber.trim()) {
+    const cleaned = mobileNumber.trim();
+    if (!/^[0-9+ ()-]{6,20}$/.test(cleaned)) {
+      context.res = { status: 400, headers: corsHeaders, body: { error: 'mobileNumber invalid' } };
+      return;
+    }
+    mobile = cleaned;
   }
 
   const db = cosmos.database('homerepair-db');
@@ -55,8 +80,11 @@ module.exports = async function (context, req) {
 
   const item = {
     id: sub,
-    displayName,
-    contactEmail: contactEmail || null,
+    displayName: username,
+    preferredUsername: username,
+    contactEmail: email,
+    mobileNumber: mobile,
+    defaultUserId: sub,
     updatedAt: new Date().toISOString(),
     createdAt: new Date().toISOString()
   };
