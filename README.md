@@ -14,7 +14,7 @@ An AI‑powered assistant for diagnosing home maintenance issues, recommending D
 
 **Authentication** – The app uses Azure AD B2C via MSAL. A sign‑in/out button appears in the header; authenticated users can chat, view their conversation history, and manage their account. An anonymous ID is generated for unauthenticated visitors.
 
-Professional registration – Tradespeople can register their business, service areas and services. Their records include a servicesConcat field for searchability. Seed scripts and registration forms populate the database.
+**Professional registration** – Tradespeople can register their business, service areas and services. Their records include a servicesConcat field for searchability. Seed scripts and registration forms populate the database.
 
 Data ingestion & search index – Utility scripts set up the Azure Cognitive Search index, seed sample data, and scrape additional products/professionals from public sources. A scoring profile boosts recent updates and highly rated items.
 
