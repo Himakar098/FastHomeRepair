@@ -1,10 +1,9 @@
 // homerepair-ai/backend/common/auth.js
-// Minimal JWT validation using JWKS. Use with Azure AD B2C (Microsoft Entra External ID) or another OIDC provider.
-
+// CIAM JWT validation using JWKS
 const jwksClient = require('jwks-rsa');
 const jwt = require('jsonwebtoken');
 
-const JWKS_URI = process.env.JWKS_URI; // e.g. https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_signupsignin
+const JWKS_URI = process.env.JWKS_URI; 
 const ISSUER = process.env.TOKEN_ISSUER; // exact iss in tokens
 const AUD = process.env.TOKEN_AUDIENCE; // your SPA client_id
 
