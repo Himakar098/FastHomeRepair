@@ -40,6 +40,12 @@ COSMOS_CONNECTION_STRING=AccountEndpoint=...;AccountKey=...;
 SEARCH_ENDPOINT=https://<your-search>.search.windows.net
 SEARCH_API_KEY=...
 SEARCH_INDEX=products-index
+CIAM_TENANT=<your-ciam-tenant-id-guid>
+# Optional: override with the full authority instead of deriving it from the tenant id
+CIAM_AUTHORITY=https://<your-ciam-tenant-id>.ciamlogin.com/<your-ciam-tenant-id>/v2.0
+TOKEN_ISSUER=https://<your-ciam-tenant-id>.ciamlogin.com/<your-ciam-tenant-id>/v2.0
+JWKS_URI=https://<your-ciam-tenant-id>.ciamlogin.com/<your-ciam-tenant-id>/discovery/v2.0/keys
+TOKEN_AUDIENCE=<your-api-client-id-or-spa-client-id>
 OPENAI_API_KEY=...
 OPENAI_API_BASE=https://<your-openai-resource>.openai.azure.com
 OPENAI_DEPLOYMENT_NAME=<your-gpt-deployment>

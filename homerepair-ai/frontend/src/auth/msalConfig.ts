@@ -5,15 +5,25 @@ import { Configuration, LogLevel } from '@azure/msal-browser';
 const tenantId = (process.env.NEXT_PUBLIC_CIAM_TENANT || '').trim();
 const clientId = (process.env.NEXT_PUBLIC_CIAM_CLIENT_ID || '').trim();
 const explicitAuthority = (process.env.NEXT_PUBLIC_CIAM_AUTHORITY || '').trim();
+const isBrowser = typeof window !== 'undefined';
 
 if (!clientId) {
-  throw new Error('NEXT_PUBLIC_CIAM_CLIENT_ID must be provided for CIAM auth.');
+  const message = 'NEXT_PUBLIC_CIAM_CLIENT_ID must be provided for CIAM auth.';
+  if (isBrowser) {
+    throw new Error(message);
+  } else {
+    console.warn(message);
+  }
 }
 
 if (!explicitAuthority && !tenantId) {
-  throw new Error(
-    'Provide NEXT_PUBLIC_CIAM_AUTHORITY (preferred) or NEXT_PUBLIC_CIAM_TENANT so the CIAM authority can be resolved.'
-  );
+  const message =
+    'Provide NEXT_PUBLIC_CIAM_AUTHORITY (preferred) or NEXT_PUBLIC_CIAM_TENANT so the CIAM authority can be resolved.';
+  if (isBrowser) {
+    throw new Error(message);
+  } else {
+    console.warn(message);
+  }
 }
 
 function buildAuthority(): { authority: string; knownAuthority: string } {
@@ -24,12 +34,20 @@ function buildAuthority(): { authority: string; knownAuthority: string } {
     return { authority: url.origin + url.pathname.replace(/\/$/, ''), knownAuthority: url.host };
   }
 
+  if (!candidate) {
+    return { authority: '', knownAuthority: '' };
+  }
+
   const authority = `https://${candidate}.ciamlogin.com/${candidate}/v2.0`;
   const knownAuthority = `${candidate}.ciamlogin.com`;
   return { authority, knownAuthority };
 }
 
 const { authority, knownAuthority } = buildAuthority();
+
+if ((!authority || !knownAuthority) && isBrowser) {
+  throw new Error('Failed to resolve CIAM authority.');
+}
 
 const redirectUri =
   process.env.NEXT_PUBLIC_REDIRECT_URI || 'http://localhost:3000';
