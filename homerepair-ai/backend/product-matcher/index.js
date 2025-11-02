@@ -211,25 +211,24 @@ module.exports = async function (context, req) {
     // 3) Find professionals (simple)
     const professionals = await findProfessionals(database, problem, userLoc);
 
-    // 4) If no results are found, fall back to on-demand web search.
+    // 4) Try to enrich with on-demand web search / scraping for fresher stock.
     let fallbackProducts = [];
     let fallbackPros = [];
     try {
-      if (!detailedProducts.length) {
-        const terms = deriveSearchTerms(problem);
-        for (const term of terms) {
-          // accumulate unique products from multiple queries
-          const items = await fetchBunningsProducts(term);
-          fallbackProducts.push(...items);
-          if (fallbackProducts.length >= 5) break;
-        }
-        // Deduplicate by id
-        const map = new Map();
-        for (const p of fallbackProducts) {
-          if (!map.has(p.id)) map.set(p.id, p);
-        }
-        fallbackProducts = Array.from(map.values());
+      const terms = deriveSearchTerms(problem, category);
+      for (const term of terms) {
+        // accumulate unique products from multiple queries
+        const items = await fetchBunningsProducts(term);
+        fallbackProducts.push(...items);
+        if (fallbackProducts.length >= 8) break;
       }
+      // Deduplicate by id
+      const map = new Map();
+      for (const p of fallbackProducts) {
+        if (!map.has(p.id)) map.set(p.id, p);
+      }
+      fallbackProducts = Array.from(map.values());
+
       if (!professionals.length) {
         const svc = extractServiceType(problem);
         // Use city if provided, otherwise state
@@ -752,24 +751,62 @@ async function fetchBunningsProducts(query) {
  * @param {string} problem
  * @returns {string[]}
  */
-function deriveSearchTerms(problem) {
-  const terms = [];
+function deriveSearchTerms(problem, category) {
+  const terms = new Set();
   const text = String(problem || '').toLowerCase();
-  // Hard water / limescale on shower glass
-  if (/(shower|glass|screen)/.test(text) && /(droplet|stain|deposit|scale)/.test(text)) {
-    terms.push('glass cleaner', 'hard water stain remover', 'limescale remover');
+  const cat = String(category || '').toLowerCase();
+
+  // Mould / mildew in wet areas
+  if (text.includes('mould') || text.includes('mold') || cat.includes('mould')) {
+    terms.add('mould remover');
+    terms.add('bathroom mould cleaner');
+    if (/(shower|showerhead|shower head)/.test(text)) {
+      terms.add('shower mould cleaner');
+      terms.add('shower head cleaner');
+    }
   }
+
+  // Hard water / limescale on shower glass
+  if (/(shower|glass|screen)/.test(text) && /(droplet|stain|deposit|scale|limescale|lime scale)/.test(text)) {
+    terms.add('glass cleaner');
+    terms.add('hard water stain remover');
+    terms.add('limescale remover');
+  }
+
   // Wooden furniture repair
   if (/bed|table|chair/.test(text) && /(broken|cracked|damaged)/.test(text)) {
-    terms.push('wood repair kit', 'wood glue');
+    terms.add('wood repair kit');
+    terms.add('wood glue');
   }
-  // Generic fallback
-  if (terms.length === 0) {
-    // Extract nouns/adjectives as simple keyword approximations
+
+  // Plumbing leaks
+  if (/(pipe|tap|leak|plumb)/.test(text)) {
+    terms.add('plumbing repair kit');
+    terms.add('pipe leak sealant');
+  }
+
+  // Electrical safety
+  if (/(switch|outlet|powerpoint|socket)/.test(text)) {
+    terms.add('electrical safety switch');
+  }
+
+  // Paint / wall fixes
+  if (/(paint|wall|ceiling)/.test(text)) {
+    terms.add('interior paint');
+    terms.add('wall patch kit');
+  }
+
+  // Generic fallback – grab first few keywords
+  if (terms.size === 0) {
     const match = text.match(/([a-z]{4,})/g);
-    if (match) terms.push(...match.slice(0, 3));
+    if (match) match.slice(0, 3).forEach((m) => terms.add(m));
   }
-  return terms;
+
+  // Always include the raw problem trimmed to keep context
+  const trimmed = text.trim();
+  if (trimmed) terms.add(trimmed);
+
+  return Array.from(terms).filter(Boolean).slice(0, 5);
 }
 
 /**
