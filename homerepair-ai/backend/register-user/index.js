@@ -44,7 +44,8 @@ module.exports = async function (context, req) {
     preferredUsername,
     displayName,
     contactEmail,
-    mobileNumber
+    mobileNumber,
+    address
   } = req.body || {};
 
   const usernameCandidates = [preferredUsername, displayName].filter(v => typeof v === 'string' && v.trim());
@@ -75,6 +76,16 @@ module.exports = async function (context, req) {
     mobile = cleaned;
   }
 
+  let addressClean = null;
+  if (typeof address === 'string' && address.trim()) {
+    const trimmed = address.trim();
+    if (trimmed.length > 280) {
+      context.res = { status: 400, headers: corsHeaders, body: { error: 'address must be 280 characters or fewer' } };
+      return;
+    }
+    addressClean = trimmed;
+  }
+
   const db = cosmos.database('homerepair-db');
   const users = db.container('users');
 
@@ -84,6 +95,7 @@ module.exports = async function (context, req) {
     preferredUsername: username,
     contactEmail: email,
     mobileNumber: mobile,
+    address: addressClean,
     defaultUserId: sub,
     updatedAt: new Date().toISOString(),
     createdAt: new Date().toISOString()

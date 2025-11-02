@@ -20,6 +20,7 @@ type UserProfile = {
   preferredUsername?: string | null;
   contactEmail?: string | null;
   mobileNumber?: string | null;
+  address?: string | null;
   defaultUserId?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -45,6 +46,7 @@ export default function AccountPage() {
     preferredUsername: '',
     contactEmail: accountEmail,
     mobileNumber: '',
+    address: '',
     defaultUserId
   });
   const [loading, setLoading] = useState(false);
@@ -68,6 +70,7 @@ export default function AccountPage() {
           preferredUsername: data.user.preferredUsername || data.user.displayName || '',
           contactEmail: data.user.contactEmail || accountEmail || '',
           mobileNumber: data.user.mobileNumber || '',
+          address: data.user.address || '',
           defaultUserId: data.user.defaultUserId || data.user.id || defaultUserId,
           createdAt: data.user.createdAt,
           updatedAt: data.user.updatedAt
@@ -107,7 +110,8 @@ export default function AccountPage() {
       await post('/api/register-user', {
         preferredUsername: profile.preferredUsername,
         contactEmail: profile.contactEmail,
-        mobileNumber: profile.mobileNumber
+        mobileNumber: profile.mobileNumber,
+        address: profile.address
       });
       setMsg('Saved!');
     } catch (err: any) {
@@ -171,6 +175,19 @@ export default function AccountPage() {
             onChange={(e) => setProfile(p => ({ ...p, mobileNumber: e.target.value }))}
             placeholder="+61 4XX XXX XXX"
           />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="address">Address (optional)</label><br />
+          <textarea
+            id="address"
+            name="address"
+            value={profile.address || ''}
+            onChange={(e) => setProfile(p => ({ ...p, address: e.target.value }))}
+            placeholder="Apartment 3B, 120 Collins St, Melbourne VIC 3000"
+            rows={3}
+            maxLength={280}
+          />
+          <small style={{ color: '#666' }}>Stored securely and only used for personalised service recommendations.</small>
         </div>
         <button type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save'}</button>
       </form>

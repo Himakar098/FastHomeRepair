@@ -10,6 +10,7 @@ type ProfileState = {
   contactEmail: string;
   mobileNumber: string;
   defaultUserId: string;
+  address: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -18,7 +19,8 @@ const INITIAL_STATE: ProfileState = {
   preferredUsername: '',
   contactEmail: '',
   mobileNumber: '',
-  defaultUserId: ''
+  defaultUserId: '',
+  address: ''
 };
 
 export default function UserProfile() {
@@ -67,6 +69,7 @@ export default function UserProfile() {
         contactEmail: user.contactEmail || accountEmail || '',
         mobileNumber: user.mobileNumber || '',
         defaultUserId: user.defaultUserId || user.id || userIdFromAuth,
+        address: user.address || '',
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       });
@@ -104,7 +107,8 @@ export default function UserProfile() {
       await post('/api/register-user', {
         preferredUsername: profile.preferredUsername,
         contactEmail: profile.contactEmail,
-        mobileNumber: profile.mobileNumber
+        mobileNumber: profile.mobileNumber,
+        address: profile.address
       });
       setMessage('Profile saved!');
       await loadProfile();
@@ -165,6 +169,16 @@ export default function UserProfile() {
               value={profile.mobileNumber}
               onChange={handleChange('mobileNumber')}
               placeholder="+61 4XX XXX XXX"
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span>Address (optional)</span>
+            <textarea
+              value={profile.address}
+              onChange={(e) => setProfile(prev => ({ ...prev, address: e.target.value }))}
+              placeholder="Apartment 3B, 120 Collins St, Melbourne VIC 3000"
+              rows={3}
+              maxLength={280}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

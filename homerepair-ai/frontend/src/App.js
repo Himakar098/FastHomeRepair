@@ -23,8 +23,8 @@ function App() {
     <Router>
       <div className="App">
         <header className="app-header">
-          <h1> Home Repair AI</h1>
-          <p>Get instant expert advice for your home repairs</p>
+          <h1> Home Service Assistant</h1>
+          <p>Get instant expert advice for your home issues</p>
         </header>
         
         <main>
