@@ -71,28 +71,215 @@ function findStateInText(txt = '') {
   }
   return null;
 }
-function normaliseLocation(input = {}) {
-  const raw = typeof input === 'string' ? input.trim() : (input.location || '').trim();
-  const out = { suburb: null, city: null, state: null, postcode: null, raw: raw || null };
-  if (typeof input.state === 'string' && input.state.trim()) {
-    out.state = mapStateAbbrev(input.state.trim());
-  }
-  if (input.postcode != null && String(input.postcode).trim()) {
-    const pc = Number(String(input.postcode).trim());
-    if (Number.isFinite(pc)) out.postcode = pc;
-  }
-  if (raw) {
-    const mPost = raw.match(/\b(\d{4})\b/);
-    if (mPost) out.postcode = out.postcode ?? Number(mPost[1]);
-    const stateHit = findStateInText(raw);
-    if (stateHit) out.state = out.state ?? stateHit;
-    const first = raw.split(',')[0].trim();
-    if (first && !/^\d{4}$/.test(first) && !mapStateAbbrev(first)) {
-      out.city = first;
-      out.suburb = first;
-    }
+function mergeLocation(base, extra) {
+  const out = { ...base };
+  if (!extra) return out;
+  for (const key of ['raw', 'suburb', 'city', 'state', 'postcode']) {
+    if (!out[key] && extra[key]) out[key] = extra[key];
   }
   return out;
+}
+
+function parseStringLocation(rawValue) {
+  if (typeof rawValue !== 'string') return null;
+  const raw = rawValue.trim();
+  if (!raw) return null;
+  const result = { raw, suburb: null, city: null, state: null, postcode: null };
+  const postcodeMatch = raw.match(/\b(\d{4})\b/);
+  if (postcodeMatch) result.postcode = Number(postcodeMatch[1]);
+  const stateHit = findStateInText(raw);
+  if (stateHit) result.state = stateHit;
+  const firstToken = raw.split(',')[0].trim();
+  if (firstToken && !/^\d{4}$/.test(firstToken) && !mapStateAbbrev(firstToken)) {
+    result.city = firstToken;
+    result.suburb = firstToken;
+  }
+  return result;
+}
+
+function normaliseLocation(input = {}) {
+  if (typeof input === 'string') {
+    return parseStringLocation(input);
+  }
+
+  const result = { raw: null, suburb: null, city: null, state: null, postcode: null };
+  const stringCandidates = [];
+  const pushString = (value) => {
+    if (typeof value === 'string' && value.trim()) stringCandidates.push(value.trim());
+  };
+
+  pushString(input.raw);
+  pushString(input.location);
+  pushString(input.address);
+  pushString(input.addressClean);
+  pushString(input.city);
+  pushString(input.suburb);
+  if (Array.isArray(input.serviceAreas)) {
+    input.serviceAreas.forEach(pushString);
+  }
+  if (input.address && typeof input.address === 'object') {
+    pushString(
+      [input.address.streetAddress, input.address.locality, input.address.region, input.address.postalCode]
+        .filter(Boolean)
+        .join(', ')
+    );
+  }
+
+  const stateCandidates = [];
+  const pushState = (value) => {
+    if (typeof value === 'string' && value.trim()) stateCandidates.push(value.trim());
+  };
+  pushState(input.state);
+  pushState(input.stateOrProvince);
+  pushState(input.region);
+  if (input.address && typeof input.address === 'object') pushState(input.address.region || input.address.state);
+
+  const postcodeCandidates = [];
+  const pushPostcode = (value) => {
+    if (value == null) return;
+    const text = String(value).trim();
+    if (text) postcodeCandidates.push(text);
+  };
+  pushPostcode(input.postcode);
+  pushPostcode(input.postalCode);
+  pushPostcode(input.zipcode);
+  if (input.address && typeof input.address === 'object') pushPostcode(input.address.postalCode || input.address.zip);
+
+  if (stringCandidates.length > 0) {
+    result.raw = stringCandidates[0];
+  }
+
+  for (const candidate of stringCandidates) {
+    result = mergeLocation(result, parseStringLocation(candidate));
+  }
+
+  for (const stateCandidate of stateCandidates) {
+    const mapped = mapStateAbbrev(stateCandidate);
+    if (mapped) {
+      result.state = result.state || mapped;
+      if (result.state) break;
+    }
+  }
+
+  for (const candidate of postcodeCandidates) {
+    const numeric = Number(candidate);
+    if (Number.isFinite(numeric)) {
+      result.postcode = result.postcode ?? numeric;
+      if (result.postcode != null) break;
+    }
+  }
+
+  const hasData = Boolean(result.raw || result.suburb || result.city || result.state || result.postcode);
+  return hasData ? result : null;
+}
+
+function deriveLocationFromSources({ body, profile, claims }) {
+  const merged = { suburb: null, city: null, state: null, postcode: null, raw: null };
+  const stringInputs = [];
+  const push = (value) => {
+    if (typeof value === 'string' && value.trim()) stringInputs.push(value.trim());
+  };
+
+  if (body) {
+    push(body.location);
+    push(body.rawLocation);
+    push(body.city);
+    push(body.suburb);
+  }
+  if (profile) {
+    push(profile.address);
+    push(profile.city);
+    push(profile.suburb);
+    if (Array.isArray(profile.serviceAreas)) profile.serviceAreas.forEach(push);
+  }
+  if (claims) {
+    push(claims.city);
+    push(claims.town);
+    if (typeof claims.address === 'string') push(claims.address);
+    if (claims.address && typeof claims.address === 'object') {
+      push(
+        [
+          claims.address.streetAddress,
+          claims.address.locality || claims.address.city,
+          claims.address.region || claims.address.state,
+          claims.address.postalCode || claims.address.zip
+        ]
+          .filter(Boolean)
+          .join(', ')
+      );
+    }
+  }
+
+  const stateHints = [];
+  const addState = (value) => {
+    if (typeof value === 'string' && value.trim()) stateHints.push(value.trim());
+  };
+  if (body) addState(body.state);
+  if (profile) addState(profile.state);
+  if (claims) {
+    addState(claims.state);
+    addState(claims.region);
+    addState(claims.stateOrProvince);
+    if (claims.address && typeof claims.address === 'object') addState(claims.address.region || claims.address.state);
+  }
+
+  const postcodeHints = [];
+  const addPostcode = (value) => {
+    if (value == null) return;
+    const text = String(value).trim();
+    if (text) postcodeHints.push(text);
+  };
+  if (body) addPostcode(body.postcode);
+  if (profile) addPostcode(profile.postcode);
+  if (claims) {
+    addPostcode(claims.postalCode);
+    addPostcode(claims.zip);
+    if (claims.address && typeof claims.address === 'object')
+      addPostcode(claims.address.postalCode || claims.address.zip);
+  }
+
+  let result = { ...merged };
+
+  if (stringInputs.length > 0) {
+    result = mergeLocation(result, parseStringLocation(stringInputs[0]));
+  }
+
+  for (const candidate of stringInputs.slice(1)) {
+    result = mergeLocation(result, parseStringLocation(candidate));
+  }
+
+  for (const stateCandidate of stateHints) {
+    const mapped = mapStateAbbrev(stateCandidate);
+    if (mapped) {
+      result.state = result.state || mapped;
+      if (result.state) break;
+    }
+  }
+
+  for (const candidate of postcodeHints) {
+    const numeric = Number(candidate);
+    if (Number.isFinite(numeric)) {
+      result.postcode = result.postcode ?? numeric;
+      if (result.postcode != null) break;
+    }
+  }
+
+  if (!result.raw && stringInputs.length > 0) {
+    result.raw = stringInputs[0];
+  }
+
+  const hasData = Boolean(result.raw || result.suburb || result.city || result.state || result.postcode);
+  return hasData ? result : null;
+}
+
+async function getUserProfile(database, userId) {
+  try {
+    const container = database.container('users');
+    const { resource } = await container.item(userId, userId).read();
+    return resource || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 // ---------- HELPERS ----------
@@ -216,58 +403,53 @@ function isSafeBase64Image(dataUrl) {
 
 // ---------- SYSTEM PROMPT ----------
 const SYSTEM_PROMPT = `
-You are **Home Assistant AI**, a practical, safety-first Australian home and lifestyle maintenance assistant.
-You help users **diagnose, fix, clean, maintain, or improve** their home, garden, and vehicles using text, images, and live product/service data.
+You are **Home Assistant AI** — a practical, safety-first Australian home + lifestyle maintenance assistant.
 
----
+You diagnose, fix, clean, maintain, and improve **homes**, **gardens**, and **vehicles**.
 
-###  **Goals**
+You may receive:
 
-1. Diagnose issues from text/images.
-2. Classify difficulty: *Easy | Medium | Hard | Professional Required.*
-3. Decide DIY vs Professional (based on risk & complexity).
-4. Recommend Australian products (Bunnings, Mitre 10, Repco, etc.) with prices in AUD.
-5. Source high-rated local professionals (Airtasker, Hipages, Jim’s Group).
-6. Give clear, numbered repair/maintenance steps.
-7. Stay within user’s stated budget.
-8. Add tenant/landlord guidance when relevant.
+* text descriptions
+* photos/images
+* location/suburb/state
+* budget
+* urgency
+* web results (from Google Search or other tools)
 
----
+Your priorities:
 
-###  **Rules**
+1. **Safety first** — ALWAYS. If there is any gas, electrical mains, structural risk, asbestos, or safety uncertainty → recommend a licensed professional.
+2. **Australian context** — always assume Australia. Use AU terminology, AU standards, AU product sources, and approximate AUD prices.
 
-* Ask brief follow-ups only if key details are missing (budget, location, severity, ownership).
-* Use **web search** when recommending products or tradies — prioritise top-rated, in-stock, Australian results.
-* Mention **approximate AUD prices** and store or service name.
-* If unsure or unsafe → clearly state uncertainty and recommend professional help.
-* For **images**, describe what you see and adjust advice accordingly.
-* Politely decline unrelated requests (not home, vehicle, or cleaning).
-* Use clear, Australian tone — practical, friendly, and concise.
+Core Functions:
 
----
+* Diagnose issues based on text or images.
+* Classify difficulty: **Easy | Medium | Hard | Professional Required**.
+* Decide whether DIY is safe or not.
+* Recommend relevant products sold in **Australia** (Bunnings, Mitre 10, Amazon AU, Repco, Supercheap Auto, Autobarn, Officeworks etc.) with approximate AUD pricing.
+* Source products/services using real-time web search when needed.
+* Suggest trusted local professionals when DIY is unsafe or impractical (Hipages, Airtasker, Jim’s, Oneflare) using user location when possible.
+* Provide clear repair / cleaning / maintenance instructions using numbered step-by-step format.
+* For rentals: mention if issue should be reported to landlord/agent.
+* If user is off-topic (not home/garden/vehicle/cleaning) → politely decline.
 
-###  **Response Format (always in this order)**
+Include these sections in this exact order after user is satisfied with diagnosis and ready for repair guidance:
 
-1. **Problem Diagnosis**
-2. **Difficulty:** Easy | Medium | Hard | Professional Required
-3. **Materials & Tools:** list with AUD cost and sources
-4. **Steps:** numbered instructions
-5. **Safety Warnings**
-6. **When to Call a Professional**
-7. **Tenant/Landlord Note** *(if relevant)*
-8. **Estimated Total Cost (AUD)**
-9. **Assumptions/Uncertainties**
-10. **Suggested Products/Professionals (if web used)** – include names, prices, short summaries, and links
+1. Problem Diagnosis
+2. Difficulty: Easy | Medium | Hard | Professional Required
+3. Materials & Tools (with approx AUD cost ranges & sources)
+4. Steps (numbered, concise, practical)
+5. Safety Warnings
+6. When to call a Professional
+7. Tenant / Landlord Note (only if relevant)
+8. Estimated Total Cost (AUD)
+9. Assumptions / Uncertainties
 
----
+Ask ONLY essential follow-up questions if information is missing (e.g., material, severity, budget, suburb/state, urgency).
 
-###  **Policies**
+If unsafe or uncertain → STOP and recommend professional help.
 
-* Electrical, gas, asbestos, roofing, or structural issues → *Professional Required.*
-* Never suggest unsafe or non-compliant actions.
-* Prefer eco-friendly, water-saving, and energy-efficient solutions.
-* Always offer at least one **budget** and one **premium** option.
-* Use realistic cost estimates and clearly mark assumptions.
+Tone: friendly, concise, practical, helpful, Australian.
 `;
 
 // ---------- AZURE FUNCTION ----------
@@ -316,7 +498,18 @@ module.exports = async function (context, req) {
 
     const body = req.body || {};
     const { message, conversationId, images, category, maxPrice } = body;
-    const locObj = normaliseLocation(body); // handles location/state/postcode
+
+    let userProfile = null;
+    if (isAuthenticated) {
+      userProfile = await getUserProfile(database, userId);
+    }
+
+    const locObj =
+      deriveLocationFromSources({
+        body,
+        profile: userProfile,
+        claims: authResult
+      }) || null;
 
     // basic validation
     if (!message || typeof message !== 'string' || message.length > 5000) {

@@ -9,14 +9,9 @@ import { useAccessToken } from '../../src/hooks/useAccessToken';
  * ChatInterface
  *
  * This component provides the main conversational UI for the Home Repair
- * assistant.  It extends the original version by collecting optional
- * metadata about the user's location, desired repair category and
- * budget.  These inputs are passed to the backend so that the
- * product matcher can return city‑specific recommendations.  The
- * component also aligns with the backend contract by rendering
- * products and professionals using the `link` field rather than the
- * deprecated `productUrl`, and by showing price ranges when
- * available.
+ * assistant.  It focuses on collecting the user's problem description
+ * (and any images) and renders structured responses from the backend,
+ * including recommended products and professionals.
  *
  * Props:
  *   user – an object containing at least `{ id }` and optionally a
@@ -30,11 +25,6 @@ const ChatInterface = ({ user }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
-  const [category, setCategory] = useState('');
-  const [budget, setBudget] = useState('');
-  const [location, setLocation] = useState('');
-  const [stateInput, setStateInput] = useState('');
-  const [postcode, setPostcode] = useState('');
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const { getToken, signedIn } = useAccessToken();
@@ -109,12 +99,7 @@ const ChatInterface = ({ user }) => {
         message: messageToSend,
         conversationId,
         userId: user.id,
-        images: imagesToSend,
-        category: category || undefined,
-        maxPrice: budget ? Number(budget) : undefined,
-        location: location || undefined,
-        state: stateInput || undefined,
-        postcode: postcode || undefined
+        images: imagesToSend
       };
 
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -313,44 +298,6 @@ const ChatInterface = ({ user }) => {
             ))}
           </div>
         )}
-        {/* Extra filter inputs */}
-        <div className="filters">
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Suburb or City (optional)"
-            className="filter-input"
-          />
-          <input
-            type="text"
-            value={stateInput}
-            onChange={(e) => setStateInput(e.target.value)}
-            placeholder="State (optional)"
-            className="filter-input"
-          />
-          <input
-            type="text"
-            value={postcode}
-            onChange={(e) => setPostcode(e.target.value)}
-            placeholder="Postcode (optional)"
-            className="filter-input"
-          />
-          <input
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="Category (e.g. cleaning, plumbing)"
-            className="filter-input"
-          />
-          <input
-            type="number"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            placeholder="Max budget (optional)"
-            className="filter-input"
-          />
-        </div>
         <div className="input-controls">
           <button
             className="image-upload-btn"
