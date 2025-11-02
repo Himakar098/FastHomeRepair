@@ -396,48 +396,67 @@ async function getProductSuggestions(problem, category, maxPrice, locObj) {
   }
 }
 
-function formatRetrievalContext(products = [], professionals = [], realtimeResults = [], locObj = null) {
+function formatRetrievalContext(
+  products = [],
+  professionals = [],
+  realtimeResults = [],
+  locObj = null,
+  options = {}
+) {
+  const isAuthenticated = !!options.isAuthenticated;
   const header = locObj?.state || locObj?.city || locObj?.raw
     ? `User location (parsed): ${[locObj?.city, locObj?.state, locObj?.postcode].filter(Boolean).join(' ')}`
     : 'User location: (not provided)';
 
-  const productBullets = products.slice(0, 5).map(p => {
+  const productBullets = products.slice(0, 6).map(p => {
     const price =
       p.priceLow && p.priceHigh ? `$${p.priceLow}–$${p.priceHigh}` :
       p.price != null ? `$${p.price}` : 'price n/a';
     const supplier = p.supplier || 'supplier n/a';
     const region = [p.location, p.state, p.postcode].filter(Boolean).join(' ');
     const link = p.link || p.url || '';
-    return `• ${p.name || 'Product'} — ${price} — ${supplier}` +
-           `${region ? ` — ${region}` : ''}${link ? ` — ${link}` : ''}`;
+    const safeName = p.name || 'Product';
+    const linkFragment = link ? `[${safeName}](${link})` : safeName;
+    return `• ${linkFragment} — ${price} — ${supplier}` +
+           `${region ? ` — ${region}` : ''}`;
   });
 
-  const proBullets = professionals.slice(0, 3).map(pro => {
+  const proBullets = professionals.slice(0, 4).map(pro => {
     const name = pro.name || 'Professional';
     const areas = Array.isArray(pro.serviceAreas) ? pro.serviceAreas.join(', ') : (pro.serviceAreas || 'N/A');
-    return `• ${name} — areas: ${areas}${pro.state ? ` — ${pro.state}` : ''}`;
+    const link = pro.website || '';
+    const label = link ? `[${name}](${link})` : name;
+    return `• ${label} — areas: ${areas}${pro.state ? ` — ${pro.state}` : ''}`;
   });
 
   const realtimeBullets = realtimeResults.slice(0, 3).map(res => {
     const label = res.type && res.type !== 'general' ? res.type.toUpperCase() : 'RESULT';
-    const summary = res.snippet ? res.snippet : 'No summary available';
+    const title = res.title || 'Result';
     const link = res.link || '';
-    return `• [${label}] ${res.title || 'Result'} — ${summary}${link ? ` — ${link}` : ''}`;
+    const display = link ? `[${title}](${link})` : title;
+    const summary = res.snippet ? res.snippet : 'No summary available';
+    return `• [${label}] ${display} — ${summary}`;
   });
 
   const supplierHint = products.length === 0
-    ? 'No supplier matches were found in the index. Provide generic guidance and ask the user for their suburb/state to refine.'
+    ? 'No supplier matches were found in the index. Use live web results and ask the user for their suburb/state to refine.'
     : 'Stock/price may vary by store/region; links are indicative for Australia.';
+
+  const authNote = isAuthenticated
+    ? 'User is authenticated; include live product links and pricing.'
+    : 'User may be anonymous. Still include available product links and note any limitations politely.';
 
   return `${header}
 
-Relevant products (from our index):
+${authNote}
+
+Relevant products:
 ${productBullets.length ? productBullets.join('\n') : '• (no matches found)'}
 
 Professionals (if needed):
 ${proBullets.length ? proBullets.join('\n') : '• (no matches found)'}
 
-Live web results (Google CSE):
+Live web results:
 ${realtimeBullets.length ? realtimeBullets.join('\n') : '• (no live web results)'}
 
 Supplier hint: ${supplierHint}`;
@@ -495,8 +514,9 @@ Core Functions:
 * Decide whether DIY is safe or not.
 * Recommend relevant products sold in **Australia** (Bunnings, Mitre 10, Amazon AU, Repco, Supercheap Auto, Autobarn, Officeworks etc.) with approximate AUD pricing.
 * Source products/services using real-time web search when needed.
-* Suggest trusted local professionals when DIY is unsafe or impractical (Hipages, Airtasker, Jim’s, Oneflare) using user location when possible.
+* Suggest trusted local professionals when DIY is unsafe or impractical using user location when possible.
 * Provide clear repair / cleaning / maintenance instructions using numbered step-by-step format.
+* When product or professional links are supplied in context, surface them using Markdown bullet lists (e.g. "- [Product Name](https://...) — $price at Retailer"). Never respond that links are unavailable if the context includes any.
 * For rentals: mention if issue should be reported to landlord/agent.
 * If user is off-topic (not home/garden/vehicle/cleaning) → politely decline.
 
@@ -595,7 +615,7 @@ module.exports = async function (context, req) {
     const mergedLoc = derivedLoc ? mergeLocation(existingLoc, derivedLoc) : existingLoc;
     const locObj = hasLocationData(mergedLoc) ? mergedLoc : null;
 
-    // If images present, validate & pick first
+    // If images present, validate & pick first (requires auth)
     let imageAnalysisSummary = null;
     if (isAuthenticated && Array.isArray(images) && images.length > 0) {
       const first = images[0];
@@ -618,7 +638,8 @@ module.exports = async function (context, req) {
       } else {
         context.log.warn('Rejected image: invalid format or too large');
       }
-    } else if (!isAuthenticated && Array.isArray(images) && images.length > 0) {
+    }
+    if (!isAuthenticated && Array.isArray(images) && images.length > 0) {
       context.log.warn('Image attachments ignored for anonymous request');
     }
 
@@ -646,15 +667,21 @@ module.exports = async function (context, req) {
         suggestions.products,
         suggestions.professionals,
         suggestions.realtimeResults,
-        suggestions.resolvedLocation
+        suggestions.resolvedLocation,
+        { isAuthenticated }
       );
     } else {
-      retrievalContext = 'User is anonymous. Provide general DIY guidance without promising real-time product availability or professional referrals. Encourage signing in for personalised recommendations, live pricing, and pro connections.';
+      retrievalContext = 'User is anonymous. Provide safe DIY guidance without promising specific stock or professional referrals. Politely encourage signing in to unlock live product links, professional recommendations, and image analysis.';
     }
 
-    const updatedLocation = mergeLocation(locObj, suggestions.resolvedLocation);
-    if (hasLocationData(updatedLocation)) {
-      conversation.latestLocation = updatedLocation;
+    if (hasLocationData(locObj)) {
+      conversation.latestLocation = locObj;
+    }
+    if (isAuthenticated) {
+      const updatedLocation = mergeLocation(locObj, suggestions.resolvedLocation);
+      if (hasLocationData(updatedLocation)) {
+        conversation.latestLocation = updatedLocation;
+      }
     }
 
     // Build prompt (include image analysis if any)
