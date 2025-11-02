@@ -16,7 +16,7 @@ An AI‑powered assistant for diagnosing home maintenance issues, recommending D
 
 **Professional registration** – Tradespeople can register their business, service areas and services. Their records include a servicesConcat field for searchability. Seed scripts and registration forms populate the database.
 
-Data ingestion & search index – Utility scripts set up the Azure Cognitive Search index, seed sample data, and scrape additional products/professionals from public sources. A scoring profile boosts recent updates and highly rated items.
+**Data ingestion & search index** – Utility scripts set up the Azure Cognitive Search index, seed sample data, and scrape additional products/professionals from public sources. A scoring profile boosts recent updates and highly rated items.
 
 Quick start
 
