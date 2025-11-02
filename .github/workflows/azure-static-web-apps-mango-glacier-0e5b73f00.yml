@@ -33,10 +33,11 @@ jobs:
         env:
           # IMPORTANT: Baked into the static bundle at build time
           NEXT_PUBLIC_API_BASE: https://homerepair-api.azurewebsites.net
-          NEXT_PUBLIC_B2C_TENANT: homerepairb2c
-          NEXT_PUBLIC_B2C_POLICY: B2C_1_signupsignin
-          NEXT_PUBLIC_B2C_CLIENT_ID: eb662b8c-16b5-44a0-8d0f-f5b85d7edb12
-          NEXT_PUBLIC_B2C_API_SCOPE: api://219cb6be-0049-4c70-b2d2-433040d21426/access_as_user
+          NEXT_PUBLIC_CIAM_CLIENT_ID: eb662b8c-16b5-44a0-8d0f-f5b85d7edb12
+          NEXT_PUBLIC_CIAM_TENANT: 52f86fe8-48c3-4fa7-945b-7ef3138f3844
+          NEXT_PUBLIC_CIAM_AUTHORITY: https://52f86fe8-48c3-4fa7-945b-7ef3138f3844.ciamlogin.com/52f86fe8-48c3-4fa7-945b-7ef3138f3844/v2.0
+          NEXT_PUBLIC_CIAM_API_SCOPE: api://219cb6be-0049-4c70-b2d2-433040d21426/access_as_user
+          NEXT_PUBLIC_API_CLIENT_ID: 219cb6be-0049-4c70-b2d2-433040d21426
           NEXT_PUBLIC_REDIRECT_URI: https://mango-glacier-0e5b73f00.3.azurestaticapps.net
 
           # Optional hints for Oryx build (kept here as well as GITHUB_ENV for robustness)
@@ -74,4 +75,5 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_GLACIER_0E5B73F00 }}
           action: "close"
           app_location: "homerepair-ai/frontend"
+
 
