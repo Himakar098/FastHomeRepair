@@ -244,18 +244,38 @@ module.exports = async function (context, req) {
       serviceHint: extractServiceType(problem)
     });
 
+    const realtimeProductSchemas = realtimeResults
+      .filter((r) => r.type === 'product')
+      .map((item) => toProductSchema(realtimeResultToProduct(item, userLoc)));
+
+    const realtimeProfessionalSchemas = realtimeResults
+      .filter((r) => r.type === 'professional')
+      .map((item) => toProfessionalSchema(realtimeResultToProfessional(item, userLoc)));
+
+    const productSchemas = [
+      ...realtimeProductSchemas,
+      ...detailedProducts.map(toProductSchema),
+      ...fallbackProducts.map(toProductSchema)
+    ];
+
+    const professionalSchemas = [
+      ...realtimeProfessionalSchemas,
+      ...professionals.map(toProfessionalSchema),
+      ...fallbackPros.map(toProfessionalSchema)
+    ];
+
     context.res = {
       status: 200,
       headers: corsHeaders,
       body: {
-        products: [...detailedProducts.map(toProductSchema), ...fallbackProducts.map(toProductSchema)],
-        professionals: [...professionals.map(toProfessionalSchema), ...fallbackPros.map(toProfessionalSchema)],
+        products: dedupeProducts(productSchemas),
+        professionals: dedupeProfessionals(professionalSchemas),
         location: userLoc,
         searchQuery: problem,
         totalResults: searchResults.length,
         realtimeResults,
-        realtimeProducts: realtimeResults.filter((r) => r.type === 'product'),
-        realtimeProfessionals: realtimeResults.filter((r) => r.type === 'professional')
+        realtimeProducts: realtimeProductSchemas,
+        realtimeProfessionals: realtimeProfessionalSchemas
       }
     };
   } catch (error) {
@@ -585,6 +605,73 @@ function parseHostname(link) {
 
 function stripHtml(input = '') {
   return String(input).replace(/<[^>]+>/g, '');
+}
+
+function realtimeResultToProduct(item, userLoc) {
+  return {
+    id: `realtime-${item.id || item.link}`,
+    name: item.title || item.displayLink || 'Product',
+    category: null,
+    price: null,
+    priceLow: null,
+    priceHigh: null,
+    supplier: item.displayLink
+      ? `Live web – ${item.displayLink}`
+      : `Live web – ${parseHostname(item.link) || 'online'}`,
+    location: userLoc?.city || null,
+    state: userLoc?.state || null,
+    postcode: userLoc?.postcode ?? null,
+    problems: [],
+    rating: null,
+    link: item.link || null,
+    productUrl: item.link || null,
+    imageUrl: null,
+    lastUpdated: new Date().toISOString(),
+    searchScore: null
+  };
+}
+
+function realtimeResultToProfessional(item, userLoc) {
+  return {
+    id: `realtime-pro-${item.id || item.link}`,
+    name: item.title || item.displayLink || 'Professional',
+    services: [],
+    serviceAreas: userLoc?.city ? [userLoc.city] : [],
+    phone: null,
+    website: item.link || null,
+    rating: null,
+    state: userLoc?.state || null
+  };
+}
+
+function dedupeProducts(products = []) {
+  const seen = new Set();
+  const result = [];
+  for (const product of products) {
+    if (!product) continue;
+    const key = (product.link || product.productUrl || product.id || '').toLowerCase();
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    result.push(product);
+  }
+  return result;
+}
+
+function dedupeProfessionals(pros = []) {
+  const seen = new Set();
+  const result = [];
+  for (const pro of pros) {
+    if (!pro) continue;
+    const key = (pro.website || pro.id || '').toLowerCase();
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    result.push(pro);
+  }
+  return result;
 }
 
 // ------------------------------------------------------------------------

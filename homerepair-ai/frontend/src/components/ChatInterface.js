@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Camera, Loader } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useHttp } from '../api/http';
 import { useAccessToken } from '../hooks/useAccessToken';
 
@@ -189,8 +191,18 @@ const ChatInterface = ({ user }) => {
                   ))}
                 </div>
               )}
-              <div className="message-text" style={{ whiteSpace: 'pre-line' }}>
-                {message.content}
+              <div className="message-text">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  linkTarget="_blank"
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a {...props} rel="noopener noreferrer" target="_blank" />
+                    )
+                  }}
+                >
+                  {message.content || ''}
+                </ReactMarkdown>
               </div>
               {message.products && message.products.length > 0 && (
                 <div className="recommended-products">

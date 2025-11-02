@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Camera, Loader } from 'lucide-react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 
 /**
@@ -218,7 +220,17 @@ const ChatInterface = ({ user }) => {
                 </div>
               )}
               <div className="message-text">
-                {message.content}
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  linkTarget="_blank"
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a {...props} rel="noopener noreferrer" target="_blank" />
+                    )
+                  }}
+                >
+                  {message.content || ''}
+                </ReactMarkdown>
               </div>
               {message.featuresLimited && (
                 <div className="limited-note">

@@ -71,8 +71,13 @@ function findStateInText(txt = '') {
   }
   return null;
 }
+function hasLocationData(value) {
+  if (!value) return false;
+  return ['raw', 'suburb', 'city', 'state', 'postcode'].some((key) => !!value[key]);
+}
+
 function mergeLocation(base, extra) {
-  const out = { ...base };
+  const out = { ...(base || {}) };
   if (!extra) return out;
   for (const key of ['raw', 'suburb', 'city', 'state', 'postcode']) {
     if (!out[key] && extra[key]) out[key] = extra[key];
@@ -90,9 +95,10 @@ function parseStringLocation(rawValue) {
   const stateHit = findStateInText(raw);
   if (stateHit) result.state = stateHit;
   const firstToken = raw.split(',')[0].trim();
-  if (firstToken && !/^\d{4}$/.test(firstToken) && !mapStateAbbrev(firstToken)) {
-    result.city = firstToken;
-    result.suburb = firstToken;
+  const cleanedToken = firstToken.replace(/[^a-z0-9\s-]/gi, '').trim();
+  if (cleanedToken && !/^\d{4}$/.test(cleanedToken) && !mapStateAbbrev(cleanedToken)) {
+    result.city = cleanedToken;
+    result.suburb = cleanedToken;
   }
   return result;
 }
@@ -173,7 +179,35 @@ function normaliseLocation(input = {}) {
   return hasData ? result : null;
 }
 
-function deriveLocationFromSources({ body, profile, claims }) {
+function extractLocationFromFreeText(text) {
+  if (typeof text !== 'string') return [];
+  const trimmed = text.trim();
+  const candidates = [];
+
+  if (!trimmed) return candidates;
+
+  // Short messages like "Perth WA" or "WA"
+  if (trimmed.length <= 64) {
+    candidates.push(trimmed);
+  }
+
+  const patterns = [
+    /(?:from|in|near|around|at)\s+([a-z\s]+?)(?=[.,;!?]|$)/gi,
+    /([a-z\s]+?),\s*(nsw|vic|qld|wa|sa|tas|nt|act)(?=[.,;!?]|$)/gi
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(trimmed))) {
+      const value = match[1] ? match[1] : match[0];
+      if (value) candidates.push(value.trim());
+    }
+  }
+
+  return candidates;
+}
+
+function deriveLocationFromSources({ body, profile, claims, history }) {
   const merged = { suburb: null, city: null, state: null, postcode: null, raw: null };
   const stringInputs = [];
   const push = (value) => {
@@ -221,6 +255,7 @@ function deriveLocationFromSources({ body, profile, claims }) {
     addState(claims.region);
     addState(claims.stateOrProvince);
     if (claims.address && typeof claims.address === 'object') addState(claims.address.region || claims.address.state);
+    if (typeof claims.state === 'string' && !stringInputs.length) stringInputs.push(claims.state);
   }
 
   const postcodeHints = [];
@@ -239,6 +274,32 @@ function deriveLocationFromSources({ body, profile, claims }) {
   }
 
   let result = { ...merged };
+
+  // Inspect current message text and history for location hints
+  if (body && typeof body.message === 'string') {
+    const textCandidates = extractLocationFromFreeText(body.message);
+    textCandidates.forEach(push);
+  }
+  if (Array.isArray(history)) {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const entry = history[i];
+      if (entry?.role !== 'user') continue;
+      if (typeof entry.content !== 'string') continue;
+      const texts = extractLocationFromFreeText(entry.content);
+      if (texts.length) {
+        texts.forEach(push);
+        break;
+      }
+    }
+  }
+
+  if (body && typeof body.message === 'string') {
+    const upper = body.message.trim().toUpperCase();
+    if (mapStateAbbrev(upper)) {
+      stateHints.unshift(upper);
+      if (!stringInputs.length) stringInputs.push(upper);
+    }
+  }
 
   if (stringInputs.length > 0) {
     result = mergeLocation(result, parseStringLocation(stringInputs[0]));
@@ -287,14 +348,20 @@ async function getOrCreateConversation(database, conversationId, userId) {
   const container = database.container('conversations');
   try {
     const { resource } = await container.item(conversationId, userId).read();
-    if (resource) return resource;
+    if (resource) {
+      if (!Object.prototype.hasOwnProperty.call(resource, 'latestLocation')) {
+        resource.latestLocation = null;
+      }
+      return resource;
+    }
   } catch (_) {}
   return {
     id: conversationId,
     userId,
     messages: [],
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    latestLocation: null
   };
 }
 
@@ -504,18 +571,29 @@ module.exports = async function (context, req) {
       userProfile = await getUserProfile(database, userId);
     }
 
-    const locObj =
-      deriveLocationFromSources({
-        body,
-        profile: userProfile,
-        claims: authResult
-      }) || null;
-
     // basic validation
     if (!message || typeof message !== 'string' || message.length > 5000) {
       context.res = { status: 400, headers: corsHeaders, body: { error: 'Message is required and must be under 5000 chars' } };
       return;
     }
+
+    const convId = conversationId || uuidv4();
+    const conversation = await getOrCreateConversation(database, convId, userId);
+    if (!Object.prototype.hasOwnProperty.call(conversation, 'latestLocation')) {
+      conversation.latestLocation = null;
+    }
+
+    const derivedLoc =
+      deriveLocationFromSources({
+        body,
+        profile: userProfile,
+        claims: authResult,
+        history: conversation.messages
+      }) || null;
+
+    const existingLoc = conversation.latestLocation || null;
+    const mergedLoc = derivedLoc ? mergeLocation(existingLoc, derivedLoc) : existingLoc;
+    const locObj = hasLocationData(mergedLoc) ? mergedLoc : null;
 
     // If images present, validate & pick first
     let imageAnalysisSummary = null;
@@ -543,9 +621,6 @@ module.exports = async function (context, req) {
     } else if (!isAuthenticated && Array.isArray(images) && images.length > 0) {
       context.log.warn('Image attachments ignored for anonymous request');
     }
-
-    const convId = conversationId || uuidv4();
-    const conversation = await getOrCreateConversation(database, convId, userId);
 
     conversation.messages.push({
       role: 'user',
@@ -577,12 +652,17 @@ module.exports = async function (context, req) {
       retrievalContext = 'User is anonymous. Provide general DIY guidance without promising real-time product availability or professional referrals. Encourage signing in for personalised recommendations, live pricing, and pro connections.';
     }
 
+    const updatedLocation = mergeLocation(locObj, suggestions.resolvedLocation);
+    if (hasLocationData(updatedLocation)) {
+      conversation.latestLocation = updatedLocation;
+    }
+
     // Build prompt (include image analysis if any)
     const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: `Context from our product index (prefer these if relevant):\n\n${retrievalContext}\n\nUser question follows.` },
       ...(imageAnalysisSummary ? [{ role: 'user', content: `Image analysis summary:\nDescription: ${imageAnalysisSummary.description || 'n/a'}\nSuggestions: ${imageAnalysisSummary.repairSuggestions.map(s => `- ${s.issue}: ${s.action}`).join('\n')}` }] : []),
-      ...conversation.messages.slice(-5).map(m => ({ role: m.role, content: m.content }))
+      ...conversation.messages.slice(-12).map(m => ({ role: m.role, content: m.content }))
     ];
 
     const completion = await openaiClient.chat.completions.create({
