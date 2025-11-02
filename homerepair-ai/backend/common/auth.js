@@ -3,8 +3,25 @@
 const jwksClient = require('jwks-rsa');
 const jwt = require('jsonwebtoken');
 
-const JWKS_URI = process.env.JWKS_URI; 
-const ISSUER = process.env.TOKEN_ISSUER; // exact iss in tokens
+function sanitize(value) {
+  return typeof value === 'string' ? value.trim().replace(/\/+$/, '') : '';
+}
+
+const tenantId = sanitize(process.env.CIAM_TENANT);
+const explicitAuthority = sanitize(process.env.CIAM_AUTHORITY);
+const derivedAuthority =
+  explicitAuthority ||
+  (tenantId ? `https://${tenantId}.ciamlogin.com/${tenantId}/v2.0` : '');
+
+const rawIssuer = sanitize(process.env.TOKEN_ISSUER) || derivedAuthority;
+const rawJwks =
+  sanitize(process.env.JWKS_URI) ||
+  (derivedAuthority
+    ? `${derivedAuthority.replace(/\/v2\.0$/i, '')}/discovery/v2.0/keys`
+    : '');
+
+const ISSUER = rawIssuer || null; // exact iss in tokens
+const JWKS_URI = rawJwks || null;
 const AUD = process.env.TOKEN_AUDIENCE; // your SPA client_id
 
 let client = null;

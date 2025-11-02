@@ -2,39 +2,31 @@
 
 import { Configuration, LogLevel } from '@azure/msal-browser';
 
-const tenant =
-  process.env.NEXT_PUBLIC_CIAM_TENANT || // tenant id for CIAM
-  process.env.NEXT_PUBLIC_B2C_TENANT; // fallback for pipeline env
-const clientId =
-  process.env.NEXT_PUBLIC_CIAM_CLIENT_ID ||
-  process.env.NEXT_PUBLIC_B2C_CLIENT_ID;
+const tenantId = (process.env.NEXT_PUBLIC_CIAM_TENANT || '').trim();
+const clientId = (process.env.NEXT_PUBLIC_CIAM_CLIENT_ID || '').trim();
+const explicitAuthority = (process.env.NEXT_PUBLIC_CIAM_AUTHORITY || '').trim();
 
-if (!tenant || !clientId) {
+if (!clientId) {
+  throw new Error('NEXT_PUBLIC_CIAM_CLIENT_ID must be provided for CIAM auth.');
+}
+
+if (!explicitAuthority && !tenantId) {
   throw new Error(
-    'NEXT_PUBLIC_CIAM_TENANT/NEXT_PUBLIC_CIAM_CLIENT_ID must be provided for CIAM auth.'
+    'Provide NEXT_PUBLIC_CIAM_AUTHORITY (preferred) or NEXT_PUBLIC_CIAM_TENANT so the CIAM authority can be resolved.'
   );
 }
 
-const explicitAuthority = (process.env.NEXT_PUBLIC_CIAM_AUTHORITY || '').trim();
-
 function buildAuthority(): { authority: string; knownAuthority: string } {
-  const candidate = explicitAuthority.length > 0 ? explicitAuthority : (tenant || '').trim();
+  const candidate = explicitAuthority.length > 0 ? explicitAuthority : tenantId;
 
   if (/^https?:\/\//i.test(candidate)) {
     const url = new URL(candidate.replace(/\/$/, ''));
     return { authority: url.origin + url.pathname.replace(/\/$/, ''), knownAuthority: url.host };
   }
 
-  const guidTenant = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  if (!candidate.includes('/') && !guidTenant.test(candidate)) {
-    const legacyAuthority = `https://${candidate}.ciamlogin.com/${candidate}`;
-    return { authority: legacyAuthority, knownAuthority: `${candidate}.ciamlogin.com` };
-  }
-
-  const tenantPath = candidate.replace(/^ciamlogin\.com\//i, '').replace(/^\/+|\/+$/g, '');
-  const authorityUrl = `https://ciamlogin.com/${tenantPath}`;
-  return { authority: authorityUrl, knownAuthority: 'ciamlogin.com' };
+  const authority = `https://${candidate}.ciamlogin.com/${candidate}/v2.0`;
+  const knownAuthority = `${candidate}.ciamlogin.com`;
+  return { authority, knownAuthority };
 }
 
 const { authority, knownAuthority } = buildAuthority();
@@ -44,7 +36,6 @@ const redirectUri =
 
 const apiScope =
   process.env.NEXT_PUBLIC_CIAM_API_SCOPE ||
-  process.env.NEXT_PUBLIC_B2C_API_SCOPE ||
   (process.env.NEXT_PUBLIC_API_CLIENT_ID
     ? `api://${process.env.NEXT_PUBLIC_API_CLIENT_ID}/access_as_user`
     : undefined);

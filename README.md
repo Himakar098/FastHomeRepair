@@ -12,7 +12,7 @@ An AI‑powered assistant for diagnosing home maintenance issues, recommending D
 
 **Real‑time web fallback** – If no products or professionals are found in the index, the backend scrapes the Bunnings website and DuckDuckGo results for the user’s query to provide up‑to‑date suggestions. These items are merged into the response.
 
-**Authentication** – The app uses Azure AD B2C via MSAL. A sign‑in/out button appears in the header; authenticated users can chat, view their conversation history, and manage their account. An anonymous ID is generated for unauthenticated visitors.
+**Authentication** – The app uses Azure Entra External ID (CIAM) via MSAL. A sign‑in/out button appears in the header; authenticated users can chat, view their conversation history, and manage their account. An anonymous ID is generated for unauthenticated visitors.
 
 **Professional registration** – Tradespeople can register their business, service areas and services. Their records include a servicesConcat field for searchability. Seed scripts and registration forms populate the database.
 
@@ -50,10 +50,12 @@ CORS_ALLOWED_ORIGIN=http://localhost:3000
 
 # .env.local in frontend/
 NEXT_PUBLIC_API_BASE=http://localhost:7071
-NEXT_PUBLIC_B2C_TENANT=<your-b2c-tenant>
-NEXT_PUBLIC_B2C_POLICY=<your-b2c-signin-policy>
-NEXT_PUBLIC_B2C_CLIENT_ID=<your-b2c-client-id>
-NEXT_PUBLIC_B2C_API_SCOPE=api://<your-api-client-id>/access_as_user
+NEXT_PUBLIC_CIAM_CLIENT_ID=<your-ciam-spa-client-id>
+NEXT_PUBLIC_CIAM_TENANT=<your-ciam-tenant-id-guid>
+# Optional: point directly at the CIAM issuer if you do not want it derived from the tenant id
+NEXT_PUBLIC_CIAM_AUTHORITY=https://<your-ciam-tenant-id>.ciamlogin.com/<your-ciam-tenant-id>/v2.0
+NEXT_PUBLIC_CIAM_API_SCOPE=api://<your-api-client-id>/access_as_user
+NEXT_PUBLIC_API_CLIENT_ID=<your-api-client-id>
 NEXT_PUBLIC_REDIRECT_URI=http://localhost:3000
 
 
@@ -90,7 +92,7 @@ cd frontend
 npm run dev    # starts Next.js dev server on http://localhost:3000
 
 
-Navigate to http://localhost:3000 and sign in using your Azure AD B2C tenant. Try chatting about a repair problem. If you get a 401, ensure you’ve clicked “Sign in” before interacting with the chat.
+Navigate to http://localhost:3000 and sign in using your Azure Entra External ID (CIAM) tenant. Try chatting about a repair problem. If you get a 401, ensure you’ve clicked “Sign in” before interacting with the chat.
 
 Testing
 
@@ -133,7 +135,7 @@ The backend stores both the services array and a derived servicesConcat string s
 
 Authentication and user experience
 
-Authentication is optional but highly recommended. Without signing in, you’ll get a randomly generated session ID and your requests will be unauthenticated; the backend will reject them. Signing in with Azure AD B2C acquires a JWT and enables the chat, history and account pages. The navigation bar includes a sign‑in/out button and links to Account, Pro Signup and History.
+Authentication is optional but highly recommended. Without signing in, you’ll get a randomly generated session ID and your requests will be unauthenticated; the backend will reject them. Signing in through Azure Entra External ID (CIAM) acquires a JWT and enables the chat, history and account pages. The navigation bar includes a sign‑in/out button and links to Account, Pro Signup and History.
 
 When you chat, the assistant will display recommended products and professionals (if found) as cards. Long responses preserve line breaks for readability. If you upload an image, only common formats (JPEG/PNG/WebP) under ~10 MB are accepted.
 

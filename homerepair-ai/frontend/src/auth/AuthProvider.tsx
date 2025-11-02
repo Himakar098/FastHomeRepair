@@ -1,7 +1,7 @@
 // homerepair-ai/frontend/src/auth/AuthProvider.tsx
 //
 // Provides an MSAL context for the application.  Wrap your pages in
-// this provider to enable authentication via Azure AD B2C.
+// this provider to enable authentication via Azure Entra External ID (CIAM).
 
 'use client';
 import React from 'react';
