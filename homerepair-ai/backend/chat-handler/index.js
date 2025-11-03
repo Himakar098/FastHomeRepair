@@ -25,6 +25,12 @@ const openaiApiVersion = process.env.OPENAI_API_VERSION;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const openaiUseAad = String(process.env.OPENAI_USE_AAD || '').toLowerCase() === 'true' || !openaiApiKey;
 const OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
+const requestedReasoningEffort = (process.env.OPENAI_REASONING_EFFORT || 'medium').toLowerCase();
+const validReasoningEfforts = new Set(['light', 'medium', 'heavy']);
+const openaiReasoningEffort = validReasoningEfforts.has(requestedReasoningEffort)
+  ? requestedReasoningEffort
+  : null;
+const openaiGenerateSummary = String(process.env.OPENAI_GENERATE_SUMMARY || '').toLowerCase() === 'true';
 
 let openaiClient = null;
 if (missingOpenAIEnv.length === 0 && openaiEndpoint) {
@@ -400,7 +406,7 @@ async function getProductSuggestions(problem, category, maxPrice, locObj) {
       state: locObj?.state || null,
       postcode: locObj?.postcode || null
     };
-    const { data } = await axios.post(PRODUCT_MATCHER_URL, payload, { timeout: 6000 });
+    const { data } = await axios.post(PRODUCT_MATCHER_URL, payload, { timeout: 12000 });
     return {
       products: Array.isArray(data?.products) ? data.products : [],
       professionals: Array.isArray(data?.professionals) ? data.professionals : [],
@@ -723,10 +729,8 @@ module.exports = async function (context, req) {
       model: process.env.OPENAI_DEPLOYMENT_NAME,
       messages,
       max_completion_tokens: 1200,
-      temperature: 0.5,
-      top_p: 1.0,
-      presence_penalty: 0.0,
-      frequency_penalty: 0.1
+      ...(openaiReasoningEffort ? { reasoning: { effort: openaiReasoningEffort } } : {}),
+      ...(openaiGenerateSummary ? { generate_summary: { type: 'auto' } } : {})
     });
 
     let aiResponse = completion?.choices?.[0]?.message?.content || '';
@@ -743,7 +747,7 @@ module.exports = async function (context, req) {
             { role: 'user', content: 'Re-output the <structured_json> block from your last answer. No extra text.' }
           ],
           max_completion_tokens: 300,
-          temperature: 0
+          ...(openaiReasoningEffort ? { reasoning: { effort: openaiReasoningEffort } } : {})
         });
         const onlyBlock = followup?.choices?.[0]?.message?.content || '';
         const retryStructured = extractStructuredJSON(onlyBlock);
