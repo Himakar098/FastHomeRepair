@@ -22,7 +22,7 @@ const rawJwks =
 
 const ISSUER = rawIssuer || null; // exact iss in tokens
 const JWKS_URI = rawJwks || null;
-const AUD = process.env.TOKEN_AUDIENCE; // your SPA client_id
+const AUD = sanitize(process.env.TOKEN_AUDIENCE);
 
 let client = null;
 if (JWKS_URI) {
@@ -40,8 +40,30 @@ function getKey(header, callback) {
 
 async function validateJwt(token) {
   if (!token) throw new Error('No token');
+  const audienceSet = new Set();
+  if (AUD) {
+    if (AUD.includes(',')) {
+      AUD.split(',').map(sanitize).filter(Boolean).forEach(a => audienceSet.add(a));
+    } else {
+      audienceSet.add(AUD);
+    }
+    Array.from(audienceSet).forEach(a => {
+      if (typeof a === 'string' && !a.toLowerCase().startsWith('api://')) {
+        audienceSet.add(`api://${a}`);
+      }
+    });
+  }
+
+  const verifyOptions = {
+    issuer: ISSUER || undefined,
+    algorithms: ['RS256']
+  };
+  if (audienceSet.size > 0) {
+    verifyOptions.audience = Array.from(audienceSet);
+  }
+
   return new Promise((resolve, reject) => {
-    jwt.verify(token, getKey, { audience: AUD, issuer: ISSUER, algorithms: ['RS256'] }, (err, decoded) => {
+    jwt.verify(token, getKey, verifyOptions, (err, decoded) => {
       if (err) return reject(err);
       resolve(decoded);
     });

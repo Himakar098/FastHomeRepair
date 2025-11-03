@@ -1,9 +1,10 @@
 // homerepair-ai/backend/chat-handler/index.js
 const { CosmosClient } = require('@azure/cosmos');
-const { OpenAI } = require('openai');
+const { AzureOpenAI } = require('openai');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const { validateJwt } = require('../common/auth'); // <— NEW (see auth.js below)
+const { DefaultAzureCredential, getBearerTokenProvider } = require('@azure/identity');
 
 // ---------- CORS ----------
 const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN || '*';
@@ -15,22 +16,40 @@ const corsHeaders = {
 };
 
 // ---------- ENV CHECKS ----------
-const requiredOpenAIEnv = [
-  'OPENAI_API_KEY',
-  'OPENAI_API_BASE',
-  'OPENAI_DEPLOYMENT_NAME',
-  'OPENAI_API_VERSION'
-];
+const requiredOpenAIEnv = ['OPENAI_API_BASE', 'OPENAI_DEPLOYMENT_NAME', 'OPENAI_API_VERSION'];
 const missingOpenAIEnv = requiredOpenAIEnv.filter(v => !process.env[v]);
+
+const openaiEndpoint = (process.env.OPENAI_API_BASE || '').replace(/\/+$/, '');
+const openaiDeployment = process.env.OPENAI_DEPLOYMENT_NAME;
+const openaiApiVersion = process.env.OPENAI_API_VERSION;
+const openaiApiKey = process.env.OPENAI_API_KEY;
+const openaiUseAad = String(process.env.OPENAI_USE_AAD || '').toLowerCase() === 'true' || !openaiApiKey;
+const OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
 
 let openaiClient = null;
 if (missingOpenAIEnv.length === 0) {
-  openaiClient = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: `${process.env.OPENAI_API_BASE}/openai/deployments/${process.env.OPENAI_DEPLOYMENT_NAME}`,
-    defaultQuery: { 'api-version': process.env.OPENAI_API_VERSION },
-    defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
-  });
+  try {
+    if (openaiUseAad) {
+      const credential = new DefaultAzureCredential();
+      const tokenProvider = getBearerTokenProvider(credential, OPENAI_SCOPE);
+      openaiClient = new AzureOpenAI({
+        azure_endpoint: openaiEndpoint,
+        azure_ad_token_provider: tokenProvider,
+        apiVersion: openaiApiVersion,
+        api_version: openaiApiVersion
+      });
+    } else {
+      openaiClient = new AzureOpenAI({
+        apiKey: openaiApiKey,
+        azure_endpoint: openaiEndpoint,
+        apiVersion: openaiApiVersion,
+        api_version: openaiApiVersion
+      });
+    }
+  } catch (err) {
+    console.error('Failed to initialize Azure OpenAI client:', err);
+    openaiClient = null;
+  }
 }
 
 // Cosmos
@@ -572,6 +591,14 @@ module.exports = async function (context, req) {
 
     if (missingOpenAIEnv.length > 0) {
       const details = `Missing required environment variables: ${missingOpenAIEnv.join(', ')}`;
+      context.log.error(details);
+      context.res = { status: 500, headers: corsHeaders, body: { error: 'Chat service not configured', details } };
+      return;
+    }
+    if (!openaiClient) {
+      const details = openaiUseAad
+        ? 'Azure OpenAI client is not initialized. Ensure the function identity has access to the Azure OpenAI resource.'
+        : 'Azure OpenAI client is not initialized. Verify OPENAI_API_KEY or set OPENAI_USE_AAD=true for managed identity authentication.';
       context.log.error(details);
       context.res = { status: 500, headers: corsHeaders, body: { error: 'Chat service not configured', details } };
       return;
