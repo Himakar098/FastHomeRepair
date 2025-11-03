@@ -722,7 +722,7 @@ module.exports = async function (context, req) {
     const completion = await openaiClient.chat.completions.create({
       model: process.env.OPENAI_DEPLOYMENT_NAME,
       messages,
-      max_tokens: 1200,
+      max_completion_tokens: 1200,
       temperature: 0.5,
       top_p: 1.0,
       presence_penalty: 0.0,
@@ -742,7 +742,7 @@ module.exports = async function (context, req) {
             { role: 'system', content: 'Return ONLY the <structured_json> block as valid JSON wrapped in <structured_json> tags. No prose.' },
             { role: 'user', content: 'Re-output the <structured_json> block from your last answer. No extra text.' }
           ],
-          max_tokens: 300,
+          max_completion_tokens: 300,
           temperature: 0
         });
         const onlyBlock = followup?.choices?.[0]?.message?.content || '';

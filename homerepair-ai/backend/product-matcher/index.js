@@ -355,20 +355,30 @@ async function restSearchProducts(problem, filter) {
     searchFields: 'name,description,problems'
   };
 
-  const { data } = await axios.post(url, body, {
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': apiKey
-    },
-    timeout: 8000
-  });
+  try {
+    const { data } = await axios.post(url, body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey
+      },
+      timeout: 8000
+    });
 
-  const values = Array.isArray(data?.value) ? data.value : [];
-  return values.map((v) => {
-    const d = v || {};
-    const score = typeof d['@search.score'] === 'number' ? d['@search.score'] : null;
-    return toResultRow(d, score);
-  });
+    const values = Array.isArray(data?.value) ? data.value : [];
+    return values.map((v) => {
+      const d = v || {};
+      const score = typeof d['@search.score'] === 'number' ? d['@search.score'] : null;
+      return toResultRow(d, score);
+    });
+  } catch (err) {
+    const isAxios = !!(err && err.response);
+    const errorMessage = isAxios ? err.response?.data?.error?.message || '' : '';
+    if (filter && isAxios && err.response?.status === 400 && /could not find a property named/i.test(errorMessage)) {
+      // Retry without the offending filter when the field does not exist in the index.
+      return await restSearchProducts(problem, undefined);
+    }
+    throw err;
+  }
 }
 
 function toResultRow(d, score) {
