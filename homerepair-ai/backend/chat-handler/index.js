@@ -27,23 +27,23 @@ const openaiUseAad = String(process.env.OPENAI_USE_AAD || '').toLowerCase() === 
 const OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
 
 let openaiClient = null;
-if (missingOpenAIEnv.length === 0) {
+if (missingOpenAIEnv.length === 0 && openaiEndpoint) {
   try {
     if (openaiUseAad) {
       const credential = new DefaultAzureCredential();
       const tokenProvider = getBearerTokenProvider(credential, OPENAI_SCOPE);
       openaiClient = new AzureOpenAI({
-        azure_endpoint: openaiEndpoint,
-        azure_ad_token_provider: tokenProvider,
+        endpoint: openaiEndpoint,
         apiVersion: openaiApiVersion,
-        api_version: openaiApiVersion
+        deployment: openaiDeployment,
+        azureADTokenProvider: tokenProvider
       });
     } else {
       openaiClient = new AzureOpenAI({
         apiKey: openaiApiKey,
-        azure_endpoint: openaiEndpoint,
+        endpoint: openaiEndpoint,
         apiVersion: openaiApiVersion,
-        api_version: openaiApiVersion
+        deployment: openaiDeployment
       });
     }
   } catch (err) {
