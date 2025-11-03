@@ -25,7 +25,7 @@ const openaiApiVersion = process.env.OPENAI_API_VERSION;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const openaiUseAad = String(process.env.OPENAI_USE_AAD || '').toLowerCase() === 'true' || !openaiApiKey;
 const OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
-const requestedReasoningEffort = (process.env.OPENAI_REASONING_EFFORT || 'medium').toLowerCase();
+const requestedReasoningEffort = (process.env.OPENAI_REASONING_EFFORT || '').toLowerCase();
 const validReasoningEfforts = new Set(['light', 'medium', 'heavy']);
 const openaiReasoningEffort = validReasoningEfforts.has(requestedReasoningEffort)
   ? requestedReasoningEffort
@@ -725,13 +725,19 @@ module.exports = async function (context, req) {
       ...conversation.messages.slice(-12).map(m => ({ role: m.role, content: m.content }))
     ];
 
-    const completion = await openaiClient.chat.completions.create({
+    const requestOptions = {
       model: process.env.OPENAI_DEPLOYMENT_NAME,
       messages,
-      max_completion_tokens: 1200,
-      ...(openaiReasoningEffort ? { reasoning: { effort: openaiReasoningEffort } } : {}),
-      ...(openaiGenerateSummary ? { generate_summary: { type: 'auto' } } : {})
-    });
+      max_completion_tokens: 1200
+    };
+    if (openaiReasoningEffort) {
+      requestOptions.reasoning_effort = openaiReasoningEffort;
+    }
+    if (openaiGenerateSummary) {
+      requestOptions.generate_summary = { type: 'auto' };
+    }
+
+    const completion = await openaiClient.chat.completions.create(requestOptions);
 
     let aiResponse = completion?.choices?.[0]?.message?.content || '';
     conversation.messages.push({ role: 'assistant', content: aiResponse, timestamp: new Date().toISOString() });
@@ -740,15 +746,18 @@ module.exports = async function (context, req) {
 
     if (!structured) {
       try {
-        const followup = await openaiClient.chat.completions.create({
+        const followupOptions = {
           model: process.env.OPENAI_DEPLOYMENT_NAME,
           messages: [
             { role: 'system', content: 'Return ONLY the <structured_json> block as valid JSON wrapped in <structured_json> tags. No prose.' },
             { role: 'user', content: 'Re-output the <structured_json> block from your last answer. No extra text.' }
           ],
-          max_completion_tokens: 300,
-          ...(openaiReasoningEffort ? { reasoning: { effort: openaiReasoningEffort } } : {})
-        });
+          max_completion_tokens: 300
+        };
+        if (openaiReasoningEffort) {
+          followupOptions.reasoning_effort = openaiReasoningEffort;
+        }
+        const followup = await openaiClient.chat.completions.create(followupOptions);
         const onlyBlock = followup?.choices?.[0]?.message?.content || '';
         const retryStructured = extractStructuredJSON(onlyBlock);
         if (retryStructured) {
