@@ -562,6 +562,7 @@ Ask ONLY essential follow-up questions if information is missing (e.g., material
 If unsafe or uncertain → STOP and recommend professional help.
 
 Tone: friendly, concise, practical, helpful, Australian.
+If user finish, give him a warm send off message.
 `;
 
 // ---------- AZURE FUNCTION ----------
