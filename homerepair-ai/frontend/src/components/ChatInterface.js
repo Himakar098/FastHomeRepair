@@ -169,13 +169,13 @@ const ChatInterface = ({ user }) => {
         {messages.length === 0 && (
           <div className="welcome-message">
             <h2>Welcome to Home Assistant!</h2>
-            <p>Describe your home problem or upload photos, and I'll help you find the best solution.</p>
+            <p>Describe your home problem or upload photos, and I&rsquo;ll help you find the best solution.</p>
             <div className="example-questions">
               <h3>Try asking:</h3>
               <ul>
-                <li>"My oven has stubborn stains, how can I clean it?"</li>
-                <li>"There's a small hole in my wall, can I fix it myself?"</li>
-                <li>"I want to move my furniture. Whom should I hire?"</li>
+                <li>&ldquo;My oven has stubborn stains, how can I clean it?&rdquo;</li>
+                <li>&ldquo;There&rsquo;s a small hole in my wall, can I fix it myself?&rdquo;</li>
+                <li>&ldquo;I want to move my furniture. Whom should I hire?&rdquo;</li>
               </ul>
             </div>
           </div>
@@ -187,6 +187,7 @@ const ChatInterface = ({ user }) => {
               {message.images && message.images.length > 0 && (
                 <div className="message-images">
                   {message.images.map((img, imgIndex) => (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img key={imgIndex} src={img.dataUrl} alt="User upload" className="message-image" />
                   ))}
                 </div>
@@ -196,8 +197,8 @@ const ChatInterface = ({ user }) => {
                   remarkPlugins={[remarkGfm]}
                   linkTarget="_blank"
                   components={{
-                    a: ({ node, ...props }) => (
-                      <a {...props} rel="noopener noreferrer" target="_blank" />
+                    a: (anchorProps) => (
+                      <a {...anchorProps} rel="noopener noreferrer" target="_blank" />
                     )
                   }}
                 >
@@ -289,6 +290,7 @@ const ChatInterface = ({ user }) => {
           <div className="selected-images">
             {selectedImages.map((img, index) => (
               <div key={index} className="selected-image">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.dataUrl} alt={img.name} />
                 <button onClick={() => removeImage(index)} className="remove-image">
                   ×

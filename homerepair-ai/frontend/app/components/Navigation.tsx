@@ -10,26 +10,18 @@ import AuthButtons from '../../src/components/AuthButtons';
 
 export default function Navigation() {
   return (
-    <nav
-      style={{
-        padding: '1rem',
-        borderBottom: '1px solid #ccc',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}
-    >
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
+    <nav className="main-nav">
+      <div className="main-nav__links">
+        <Link href="/" className="nav-link">
           Chat
         </Link>
-        <Link href="/account" style={{ textDecoration: 'none' }}>
+        <Link href="/account" className="nav-link">
           Account
         </Link>
-        <Link href="/professional" style={{ textDecoration: 'none' }}>
+        <Link href="/professional" className="nav-link">
           Pro Signup
         </Link>
-        <Link href="/history" style={{ textDecoration: 'none' }}>
+        <Link href="/history" className="nav-link">
           History
         </Link>
       </div>

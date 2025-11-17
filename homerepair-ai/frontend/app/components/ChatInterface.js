@@ -7,6 +7,33 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 
+const formatLocationLabel = (location) => {
+  if (!location) return '';
+  if (typeof location === 'string') return location;
+  const parts = [
+    location.city || location.suburb || null,
+    location.state || null,
+    location.postcode != null ? String(location.postcode) : null
+  ].filter(Boolean);
+  return parts.join(', ') || location.raw || '';
+};
+
+const formatServiceAreas = (areas) => {
+  if (Array.isArray(areas) && areas.length > 0) return areas.join(', ');
+  if (typeof areas === 'string' && areas.trim().length > 0) return areas;
+  return 'Australia-wide';
+};
+
+const formatWebsiteLabel = (url) => {
+  if (!url) return '';
+  try {
+    const { hostname } = new URL(url);
+    return hostname.replace(/^www\./i, '');
+  } catch {
+    return url;
+  }
+};
+
 /**
  * ChatInterface
  *
@@ -112,6 +139,14 @@ const ChatInterface = ({ user }) => {
         conversationId: newConvId,
         products,
         professionals,
+        realtimeResults,
+        realtimeProducts,
+        realtimeProfessionals,
+        imageAnalysis,
+        difficulty,
+        estimatedCostHint,
+        location,
+        structured,
         featuresLimited
       } = response.data;
 
@@ -125,6 +160,14 @@ const ChatInterface = ({ user }) => {
         timestamp: new Date().toISOString(),
         products,
         professionals,
+        realtimeResults,
+        realtimeProducts,
+        realtimeProfessionals,
+        imageAnalysis,
+        difficulty,
+        estimatedCostHint,
+        location,
+        structured,
         featuresLimited: !!featuresLimited
       };
       setMessages(prev => [...prev, assistantMessage]);
@@ -197,13 +240,13 @@ const ChatInterface = ({ user }) => {
         {messages.length === 0 && (
           <div className="welcome-message">
             <h2>Welcome! I am your Home Assistant!</h2>
-            <p>Describe your home problem or upload photos, and I'll help you find the best solution.</p>
+            <p>Describe your home problem or upload photos, and I&rsquo;ll help you find the best solution.</p>
             <div className="example-questions">
               <h3>Try asking:</h3>
               <ul>
-                <li>"My oven has stubborn stains, how can I clean it?"</li>
-                <li>"There's a small hole in my wall, can I fix it myself?"</li>
-                <li>"I want to move my furniture. Whom should I hire?"</li>
+                <li>&ldquo;My oven has stubborn stains, how can I clean it?&rdquo;</li>
+                <li>&ldquo;There&rsquo;s a small hole in my wall, can I fix it myself?&rdquo;</li>
+                <li>&ldquo;I want to move my furniture. Whom should I hire?&rdquo;</li>
               </ul>
             </div>
           </div>
@@ -215,6 +258,7 @@ const ChatInterface = ({ user }) => {
               {message.images && message.images.length > 0 && (
                 <div className="message-images">
                   {message.images.map((img, imgIndex) => (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img key={imgIndex} src={img.dataUrl} alt="User upload" className="message-image" />
                   ))}
                 </div>
@@ -224,60 +268,178 @@ const ChatInterface = ({ user }) => {
                   remarkPlugins={[remarkGfm]}
                   linkTarget="_blank"
                   components={{
-                    a: ({ node, ...props }) => (
-                      <a {...props} rel="noopener noreferrer" target="_blank" />
-                    )
+                    a: (anchorProps) => <a {...anchorProps} rel="noopener noreferrer" target="_blank" />
                   }}
                 >
                   {message.content || ''}
                 </ReactMarkdown>
               </div>
+              {(message.difficulty || message.estimatedCostHint || formatLocationLabel(message.location)) && (
+                <div className="ai-meta">
+                  {message.difficulty && (
+                    <div className="meta-pill">
+                      <span className="pill-label">Difficulty</span>
+                      <span className="pill-value">{message.difficulty}</span>
+                    </div>
+                  )}
+                  {message.estimatedCostHint && (
+                    <div className="meta-pill">
+                      <span className="pill-label">Est. cost</span>
+                      <span className="pill-value">{message.estimatedCostHint}</span>
+                    </div>
+                  )}
+                  {formatLocationLabel(message.location) && (
+                    <div className="location-chip">Based on {formatLocationLabel(message.location)}</div>
+                  )}
+                </div>
+              )}
               {message.featuresLimited && (
                 <div className="limited-note">
                   Sign in to unlock product recommendations, professional referrals, and detailed image analysis.
                 </div>
               )}
-              {message.products && message.products.length > 0 && (
-                <div className="recommended-products">
-                  <h4>Recommended Products:</h4>
-                  {message.products.map((product, prodIndex) => (
-                    <div key={prodIndex} className="product-card">
-                      <h5>{product.name}</h5>
-                      <p>Price: {renderPrice(product)}</p>
-                      {product.supplier && <p>Available at: {product.supplier}</p>}
-                      {product.link && (
-                        <a href={product.link} target="_blank" rel="noopener noreferrer">
-                          View Product
-                        </a>
-                      )}
+              {message.imageAnalysis && (
+                <div className="insight-card">
+                  <div className="section-heading">
+                    <h4>Image insights</h4>
+                    <span className="accent-pill">Computer vision</span>
+                  </div>
+                  {message.imageAnalysis.description && (
+                    <p className="insight-text">{message.imageAnalysis.description}</p>
+                  )}
+                  {Array.isArray(message.imageAnalysis.usedFeatures) && message.imageAnalysis.usedFeatures.length > 0 && (
+                    <div className="pill-row">
+                      {message.imageAnalysis.usedFeatures.map((feature, idx) => (
+                        <span key={`feature-${idx}`} className="feature-pill">{feature}</span>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  {Array.isArray(message.imageAnalysis.repairSuggestions) && message.imageAnalysis.repairSuggestions.length > 0 && (
+                    <ul className="insight-list">
+                      {message.imageAnalysis.repairSuggestions.map((suggestion, idx) => (
+                        <li key={`suggestion-${idx}`}>
+                          <div>
+                            <strong>{suggestion.issue}</strong>
+                            {suggestion.urgency && <span className="urgency-pill">{suggestion.urgency}</span>}
+                          </div>
+                          <p>{suggestion.action}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {message.products && message.products.length > 0 && (
+                <div className="recommended-products result-section">
+                  <div className="section-heading">
+                    <h4>Curated products</h4>
+                    <span className="accent-pill">Catalogue</span>
+                  </div>
+                  <div className="result-grid">
+                    {message.products.map((product, prodIndex) => (
+                      <div key={`product-${prodIndex}`} className="product-card">
+                        <h5>{product.name}</h5>
+                        <p>Price: {renderPrice(product)}</p>
+                        {product.supplier && <p>Available at: {product.supplier}</p>}
+                        {product.location && <p>Store: {product.location}</p>}
+                        {product.link && (
+                          <a href={product.link} target="_blank" rel="noopener noreferrer">
+                            View product
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {message.realtimeProducts && message.realtimeProducts.length > 0 && (
+                <div className="recommended-products result-section">
+                  <div className="section-heading">
+                    <h4>Live web product picks</h4>
+                    <span className="accent-pill live">Realtime</span>
+                  </div>
+                  <div className="result-grid">
+                    {message.realtimeProducts.map((product, prodIndex) => (
+                      <div key={`realtime-product-${prodIndex}`} className="product-card live">
+                        <h5>{product.name}</h5>
+                        <p>{product.supplier || 'Live retailer'}</p>
+                        {product.link && (
+                          <a href={product.link} target="_blank" rel="noopener noreferrer">
+                            Open listing
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {message.professionals && message.professionals.length > 0 && (
-                <div className="recommended-professionals">
-                  <h4>Professional Help:</h4>
-                  {message.professionals.map((pro, proIndex) => (
-                    <div key={proIndex} className="professional-card">
-                      <h5>{pro.name}</h5>
-                      {pro.services && pro.services.length > 0 && (
-                        <p>Services: {pro.services.join(', ')}</p>
-                      )}
-                      {pro.serviceAreas && pro.serviceAreas.length > 0 && (
-                        <p>Areas: {pro.serviceAreas.join(', ')}</p>
-                      )}
-                      {pro.rating != null && <p>Rating: {pro.rating}/5</p>}
-                      {pro.phone && <p>Phone: {pro.phone}</p>}
-                      {pro.website && (
-                        <p>
-                          Website:{' '}
+                <div className="recommended-professionals result-section">
+                  <div className="section-heading">
+                    <h4>Vetted professionals</h4>
+                    <span className="accent-pill">Network</span>
+                  </div>
+                  <div className="result-grid">
+                    {message.professionals.map((pro, proIndex) => (
+                      <div key={`professional-${proIndex}`} className="professional-card">
+                        <h5>{pro.name}</h5>
+                        {pro.services && pro.services.length > 0 && (
+                          <p>Services: {pro.services.join(', ')}</p>
+                        )}
+                        <p>Areas: {formatServiceAreas(pro.serviceAreas)}</p>
+                        {pro.rating != null && <p>Rating: {pro.rating}/5</p>}
+                        {pro.phone && <p>Phone: {pro.phone}</p>}
+                        {pro.website && (
                           <a href={pro.website} target="_blank" rel="noopener noreferrer">
-                            {pro.website}
+                            {formatWebsiteLabel(pro.website)}
                           </a>
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {message.realtimeProfessionals && message.realtimeProfessionals.length > 0 && (
+                <div className="recommended-professionals result-section">
+                  <div className="section-heading">
+                    <h4>Live web professionals</h4>
+                    <span className="accent-pill live">Realtime</span>
+                  </div>
+                  <div className="result-grid">
+                    {message.realtimeProfessionals.map((pro, proIndex) => (
+                      <div key={`realtime-professional-${proIndex}`} className="professional-card live">
+                        <h5>{pro.name}</h5>
+                        <p>Areas: {formatServiceAreas(pro.serviceAreas)}</p>
+                        {pro.website && (
+                          <a href={pro.website} target="_blank" rel="noopener noreferrer">
+                            {formatWebsiteLabel(pro.website)}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {message.realtimeResults && message.realtimeResults.length > 0 && (
+                <div className="live-results">
+                  <div className="section-heading">
+                    <h4>Live research</h4>
+                    <span className="accent-pill live">Realtime</span>
+                  </div>
+                  <div className="live-result-grid">
+                    {message.realtimeResults.map((result, resultIdx) => (
+                      <article key={`live-result-${resultIdx}`} className="live-result-card">
+                        <span className="result-type">{(result.type || 'general').toUpperCase()}</span>
+                        <h5>{result.title}</h5>
+                        {result.snippet && <p className="result-snippet">{result.snippet}</p>}
+                        {result.link && (
+                          <a href={result.link} target="_blank" rel="noopener noreferrer">
+                            Visit source
+                          </a>
+                        )}
+                      </article>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -302,6 +464,7 @@ const ChatInterface = ({ user }) => {
           <div className="selected-images">
             {selectedImages.map((img, index) => (
               <div key={index} className="selected-image">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.dataUrl} alt={img.name} />
                 <button onClick={() => removeImage(index)} className="remove-image">
                   ×
