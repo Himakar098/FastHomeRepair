@@ -122,100 +122,173 @@ export default function AccountPage() {
   }
 
   if (!signedIn) {
-    return <div style={{ padding: 16 }}><p>Please sign in to view your account.</p></div>;
+    return (
+      <div className="page-shell">
+        <section className="page-card primary centered">
+          <p className="eyebrow">Account</p>
+          <h2>Sign in to manage your profile</h2>
+          <p>Secure your repairs, track history and unlock realtime sourcing by signing in first.</p>
+        </section>
+      </div>
+    );
   }
 
+  const lastUpdated = profile.updatedAt
+    ? new Date(profile.updatedAt).toLocaleString('en-AU', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })
+    : 'Not saved yet';
+
   return (
-    <div style={{ padding: 16, maxWidth: 520 }}>
-      <h2>My Account</h2>
-      <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="preferredUsername">Preferred username</label><br />
-          <input
-            id="preferredUsername"
-            name="preferredUsername"
-            type="text"
-            value={profile.preferredUsername || ''}
-            onChange={(e) => setProfile(p => ({ ...p, preferredUsername: e.target.value }))}
-            required
-            maxLength={100}
-            placeholder="Choose how we'd address you"
-          />
+    <div className="page-shell">
+      <header className="page-card primary">
+        <p className="eyebrow">Account</p>
+        <div className="page-header__row">
+          <div>
+            <h1>Profile & Preferences</h1>
+            <p>Keep your contact details current so the assistant can tailor costs, pros and safety alerts.</p>
+          </div>
+          <div className="page-metrics">
+            <div>
+              <span className="metric-value">{profile.preferredUsername?.length ? 'Active' : 'Draft'}</span>
+              <span className="metric-label">Profile status</span>
+            </div>
+            <div>
+              <span className="metric-value">{profile.contactEmail ? 'Verified' : 'Pending'}</span>
+              <span className="metric-label">Email</span>
+            </div>
+            <div>
+              <span className="metric-value">{profile.updatedAt ? '✓' : '–'}</span>
+              <span className="metric-label">Last save</span>
+            </div>
+          </div>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="defaultUserId">Account ID</label><br />
-          <input
-            id="defaultUserId"
-            name="defaultUserId"
-            type="text"
-            value={profile.defaultUserId || defaultUserId || ''}
-            readOnly
-          />
-          <small style={{ color: '#666' }}>This identifier ties your conversations and preferences together. Keep it private.</small>
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="contactEmail">Email</label><br />
-          <input
-            id="contactEmail"
-            name="contactEmail"
-            type="email"
-            value={profile.contactEmail || accountEmail || ''}
-            onChange={(e) => setProfile(p => ({ ...p, contactEmail: e.target.value }))}
-            placeholder="you@example.com"
-            required
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="mobileNumber">Mobile number (optional)</label><br />
-          <input
-            id="mobileNumber"
-            name="mobileNumber"
-            type="tel"
-            value={profile.mobileNumber || ''}
-            onChange={(e) => setProfile(p => ({ ...p, mobileNumber: e.target.value }))}
-            placeholder="+61 4XX XXX XXX"
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="address">Address (optional)</label><br />
-          <textarea
-            id="address"
-            name="address"
-            value={profile.address || ''}
-            onChange={(e) => setProfile(p => ({ ...p, address: e.target.value }))}
-            placeholder="Apartment 3B, 120 Collins St, Melbourne VIC 3000"
-            rows={3}
-            maxLength={280}
-          />
-          <small style={{ color: '#666' }}>Stored securely and only used for personalised service recommendations.</small>
-        </div>
-        <button type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save'}</button>
-      </form>
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
-      <section
-        style={{
-          marginTop: 32,
-          padding: '16px',
-          border: '1px solid #d0dcff',
-          borderRadius: 8,
-          background: '#f5f8ff'
-        }}
-      >
-        <h3>Premium Features & Professional Network</h3>
-        <p>
-          As a signed-in member you unlock live web search, real-time product pricing and vision
-          analysis. To list your business on HomeRepairAI you must hold an Australian ABN, provide
-          trade qualifications, licences and proof of insurance. We review every submission before
-          it appears in customer results.
-        </p>
-        <p>
-          Ready to offer services?&nbsp;
-          <Link href="/professional" style={{ textDecoration: 'underline' }}>
-            Complete your professional profile
-          </Link>
-          .
-        </p>
-      </section>
+      </header>
+
+      <div className="page-grid two-columns">
+        <section className="page-card primary">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Contact</p>
+              <h3>Your details</h3>
+            </div>
+            <span className="page-chip subtle">Updated {lastUpdated}</span>
+          </div>
+          <form className="form-grid" onSubmit={onSubmit}>
+            <div className="form-field">
+              <label htmlFor="preferredUsername">Preferred username</label>
+              <input
+                id="preferredUsername"
+                name="preferredUsername"
+                type="text"
+                value={profile.preferredUsername || ''}
+                onChange={(e) => setProfile(p => ({ ...p, preferredUsername: e.target.value }))}
+                required
+                maxLength={100}
+                placeholder="Choose how we'd address you"
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="defaultUserId">Account ID</label>
+              <input
+                id="defaultUserId"
+                name="defaultUserId"
+                type="text"
+                value={profile.defaultUserId || defaultUserId || ''}
+                readOnly
+              />
+              <small>This identifier ties your conversations and preferences together. Keep it private.</small>
+            </div>
+            <div className="form-field">
+              <label htmlFor="contactEmail">Email</label>
+              <input
+                id="contactEmail"
+                name="contactEmail"
+                type="email"
+                value={profile.contactEmail || accountEmail || ''}
+                onChange={(e) => setProfile(p => ({ ...p, contactEmail: e.target.value }))}
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="mobileNumber">Mobile number (optional)</label>
+              <input
+                id="mobileNumber"
+                name="mobileNumber"
+                type="tel"
+                value={profile.mobileNumber || ''}
+                onChange={(e) => setProfile(p => ({ ...p, mobileNumber: e.target.value }))}
+                placeholder="+61 4XX XXX XXX"
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="address">Address (optional)</label>
+              <textarea
+                id="address"
+                name="address"
+                value={profile.address || ''}
+                onChange={(e) => setProfile(p => ({ ...p, address: e.target.value }))}
+                placeholder="Apartment 3B, 120 Collins St, Melbourne VIC 3000"
+                rows={3}
+                maxLength={280}
+              />
+              <small>Stored securely and only used for personalised service recommendations.</small>
+            </div>
+            <div className="form-actions">
+              <button type="submit" disabled={loading}>
+                {loading ? 'Saving…' : 'Save changes'}
+              </button>
+              {msg && <span className="form-status">{msg}</span>}
+            </div>
+          </form>
+        </section>
+
+        <aside className="page-card secondary">
+          <p className="eyebrow">Premium stack</p>
+          <h3>What you control</h3>
+          <ul className="status-list vertical">
+            <li>
+              <div className="status-info">
+                <span className="status-icon">🌐</span>
+                <div>
+                  <strong>Live sourcing</strong>
+                  <p>Signed-in members stream Bunnings pricing and DuckDuckGo professional leads.</p>
+                </div>
+              </div>
+              <span className="status-chip good">{signedIn ? 'Active' : 'Locked'}</span>
+            </li>
+            <li>
+              <div className="status-info">
+                <span className="status-icon">📷</span>
+                <div>
+                  <strong>Vision uploads</strong>
+                  <p>Photos route through Azure Computer Vision for contextual repairs.</p>
+                </div>
+              </div>
+              <span className="status-chip good">Enabled</span>
+            </li>
+            <li>
+              <div className="status-info">
+                <span className="status-icon">🛡️</span>
+                <div>
+                  <strong>Identity</strong>
+                  <p>Account ID {profile.defaultUserId || defaultUserId || 'pending'} secures your history.</p>
+                </div>
+              </div>
+              <span className="status-chip idle">Private</span>
+            </li>
+          </ul>
+          <div className="status-callout">
+            <h4>Need to list your business?</h4>
+            <p>We verify ABN, licences and insurance before featuring any professional.</p>
+            <Link href="/professional" className="link-button">
+              Complete pro profile →
+            </Link>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

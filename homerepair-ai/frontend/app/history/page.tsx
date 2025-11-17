@@ -61,26 +61,73 @@ export default function HistoryPage() {
   }, [signedIn, loadPage]);
 
   if (!signedIn) {
-    return <div style={{ padding: 16 }}><p>Please sign in to view your history.</p></div>;
+    return (
+      <div className="page-shell">
+        <section className="page-card primary centered">
+          <p className="eyebrow">History</p>
+          <h2>Sign in to review past advice</h2>
+          <p>Your repair threads are encrypted against your account ID to keep landlord/tenant notes private.</p>
+        </section>
+      </div>
+    );
   }
 
+  const total = items.length;
+
   return (
-    <div style={{ padding: 16, maxWidth: 800 }}>
-      <h2>My History</h2>
-      {items.length === 0 && !loading && !msg && <p>No conversations yet.</p>}
-      {items.map(row => (
-        <div key={row.id} style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>
-          <div><strong>ID:</strong> {row.id}</div>
-          <div><strong>Updated:</strong> {row.updatedAt || '-'}</div>
-          <div><strong>Last:</strong> {row.lastRole || '-'} — {row.lastPreview || ''}</div>
+    <div className="page-shell">
+      <header className="page-card primary">
+        <p className="eyebrow">History</p>
+        <div className="page-header__row">
+          <div>
+            <h1>Conversation Timeline</h1>
+            <p>Revisit diagnoses, costs and sourcing links you shared with HomeRepair AI.</p>
+          </div>
+          <div className="page-metrics">
+            <div>
+              <span className="metric-value">{total.toString().padStart(2, '0')}</span>
+              <span className="metric-label">Threads cached</span>
+            </div>
+            <div>
+              <span className="metric-value">{loading ? 'Syncing' : 'Ready'}</span>
+              <span className="metric-label">Status</span>
+            </div>
+            <div>
+              <span className="metric-value">{continuation ? 'More' : 'Complete'}</span>
+              <span className="metric-label">Pagination</span>
+            </div>
+          </div>
         </div>
-      ))}
-      {msg && <p style={{ color: 'crimson' }}>{msg}</p>}
-      {continuation && (
-        <button disabled={loading} onClick={() => loadPage(continuation)} style={{ marginTop: 12 }}>
-          {loading ? 'Loading…' : 'Load more'}
-        </button>
-      )}
+      </header>
+
+      <section className="page-card primary">
+        {items.length === 0 && !loading && !msg && (
+          <p>No conversations yet. Start a chat from the dashboard to build your history.</p>
+        )}
+        <ul className="timeline-list">
+          {items.map(row => (
+            <li key={row.id} className="timeline-item">
+              <div className="timeline-dot" />
+              <div className="timeline-content">
+                <div className="timeline-row">
+                  <span className="history-id">#{row.id}</span>
+                  <span className="history-badge">{row.lastRole || 'assistant'}</span>
+                </div>
+                <p className="timeline-preview">{row.lastPreview || 'No preview available yet.'}</p>
+                <p className="timeline-date">{row.updatedAt || row.createdAt || 'Unknown date'}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {msg && <p className="form-status">{msg}</p>}
+        {continuation && (
+          <div className="form-actions">
+            <button type="button" disabled={loading} onClick={() => loadPage(continuation)}>
+              {loading ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
