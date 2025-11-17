@@ -3,8 +3,8 @@ import Navigation from './components/Navigation';
 import AuthProvider from '../src/auth/AuthProvider';
 
 export const metadata = {
-  title: 'HomeRepair AI',
-  description: 'Live property diagnostics, product sourcing and pro routing',
+  title: 'Home Service Assistant',
+  description: 'Commercial home services copilot for diagnostics, sourcing and professional routing',
 }
 
 export default function RootLayout({
@@ -17,13 +17,17 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <div className="App">
-            <header className="app-header">
-              <p className="eyebrow">Investor preview · Internal</p>
-              <h1>HomeRepair AI</h1>
-              <p>Realtime property diagnostics, product sourcing and trusted professionals in one interface.</p>
-            </header>
-            <Navigation />
-            <main>{children}</main>
+            <div className="app-shell">
+              <Navigation />
+              <div className="app-content">
+                <header className="app-header">
+                  <p className="eyebrow">Live service copilot</p>
+                  <h1>Home Service Assistant</h1>
+                  <p>Diagnose issues, source materials and dispatch trusted professionals from one experience.</p>
+                </header>
+                <main>{children}</main>
+              </div>
+            </div>
           </div>
         </AuthProvider>
       </body>

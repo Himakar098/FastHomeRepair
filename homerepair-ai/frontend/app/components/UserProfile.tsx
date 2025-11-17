@@ -5,6 +5,12 @@ import { useMsal } from '@azure/msal-react';
 import { useAccessToken } from '../../src/hooks/useAccessToken';
 import { useHttp } from '../../src/api/http';
 
+type AccountClaims = {
+  emails?: string[];
+  email?: string;
+  oid?: string;
+};
+
 type ProfileState = {
   preferredUsername: string;
   contactEmail: string;
@@ -31,16 +37,16 @@ export default function UserProfile() {
 
   const accountEmail = useMemo(() => {
     if (!account) return '';
-    const claims: any = account.idTokenClaims || {};
+    const claims = (account.idTokenClaims || {}) as AccountClaims;
     if (Array.isArray(claims.emails) && claims.emails.length) return claims.emails[0];
     return claims.email || account.username || '';
-  }, [account, accounts]);
+  }, [account]);
 
   const userIdFromAuth = useMemo(() => {
     if (!account) return '';
-    const claims: any = account.idTokenClaims || {};
+    const claims = (account.idTokenClaims || {}) as AccountClaims;
     return claims.oid || account.localAccountId || account.homeAccountId || '';
-  }, [account, accounts]);
+  }, [account]);
 
   const [profile, setProfile] = useState<ProfileState>({
     ...INITIAL_STATE,
@@ -112,9 +118,13 @@ export default function UserProfile() {
       });
       setMessage('Profile saved!');
       await loadProfile();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setMessage(err?.response?.data?.error || 'Save failed');
+      const errorMessage =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null;
+      setMessage(errorMessage || 'Save failed');
     } finally {
       setSaving(false);
     }

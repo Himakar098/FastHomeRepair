@@ -15,6 +15,12 @@ import { useAccessToken } from '../../src/hooks/useAccessToken';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7071';
 
+type AccountClaims = {
+  emails?: string[];
+  email?: string;
+  oid?: string;
+};
+
 type UserProfile = {
   id?: string;
   preferredUsername?: string | null;
@@ -33,15 +39,15 @@ export default function AccountPage() {
   const account = accounts[0];
   const accountEmail = useMemo(() => {
     if (!account) return '';
-    const claims: any = account.idTokenClaims || {};
+    const claims = (account.idTokenClaims || {}) as AccountClaims;
     if (Array.isArray(claims.emails) && claims.emails.length) return claims.emails[0];
     return claims.email || account.username || '';
-  }, [account, accounts]);
+  }, [account]);
   const defaultUserId = useMemo(() => {
     if (!account) return '';
-    const claims: any = account.idTokenClaims || {};
+    const claims = (account.idTokenClaims || {}) as AccountClaims;
     return claims.oid || account.localAccountId || account.homeAccountId || '';
-  }, [account, accounts]);
+  }, [account]);
   const [profile, setProfile] = useState<UserProfile>({
     preferredUsername: '',
     contactEmail: accountEmail,
@@ -82,7 +88,7 @@ export default function AccountPage() {
           defaultUserId: defaultUserId || prev.defaultUserId
         }));
       }
-    } catch (e: any) {
+    } catch {
       setMsg('Failed to load profile');
     } finally {
       setLoading(false);
@@ -91,7 +97,6 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (signedIn) loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, loadProfile]);
 
   useEffect(() => {
@@ -102,7 +107,7 @@ export default function AccountPage() {
     }));
   }, [accountEmail, defaultUserId]);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
@@ -114,8 +119,12 @@ export default function AccountPage() {
         address: profile.address
       });
       setMsg('Saved!');
-    } catch (err: any) {
-      setMsg(err?.response?.data?.error || 'Save failed');
+    } catch (err) {
+      const errorMessage =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null;
+      setMsg(errorMessage || 'Save failed');
     } finally {
       setLoading(false);
     }

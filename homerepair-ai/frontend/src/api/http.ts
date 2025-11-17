@@ -7,7 +7,7 @@
 // NEXT_PUBLIC_API_BASE environment variable.
 
 'use client';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useAccessToken } from '../hooks/useAccessToken';
 
 export function useHttp() {
@@ -19,7 +19,7 @@ export function useHttp() {
     headers: { 'Content-Type': 'application/json' }
   });
 
-  async function post<T = any>(url: string, data?: any) {
+  async function post<T = unknown, D = unknown>(url: string, data?: D): Promise<AxiosResponse<T>> {
     const token = await getToken({ forceLogin: true });
     if (!token) {
       throw new Error('Authentication required');

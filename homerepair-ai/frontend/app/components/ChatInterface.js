@@ -258,8 +258,8 @@ const ChatInterface = ({ user }) => {
     },
     {
       icon: '📊',
-      title: 'Investor metrics',
-      description: 'Difficulty, spend ranges and professional demand packaged for reporting.',
+      title: 'Service insights',
+      description: 'Difficulty bands, spend ranges and demand signals to guide next actions.',
       state: 'live',
       badge: 'INSIGHT'
     }
@@ -304,8 +304,7 @@ const ChatInterface = ({ user }) => {
     <div className="chat-interface">
       {!signedIn && (
         <div className="auth-banner">
-          <strong>Investor preview:</strong> Sign in to stream live pricing, professional referrals and image
-          analysis.
+          <strong>Tip:</strong> Sign in to unlock live pricing, professional referrals and photo analysis.
         </div>
       )}
 
@@ -329,13 +328,13 @@ const ChatInterface = ({ user }) => {
           <div className="chat-messages">
             {messages.length === 0 && (
               <div className="welcome-message">
-                <h2>Welcome! I am your Home Assistant!</h2>
+                <h2>Welcome to Home Service Assistant</h2>
                 <p>
                   Describe your property issue or upload photos, and I&rsquo;ll return a plan with products,
                   pricing and when to escalate to a professional.
                 </p>
                 <div className="example-questions">
-                  <h3>Pitch-ready prompts:</h3>
+                  <h3>Try asking:</h3>
                   <ul>
                     <li>&ldquo;My oven has stubborn stains, how can I clean it?&rdquo;</li>
                     <li>&ldquo;There&rsquo;s a small hole in my wall, can I fix it myself?&rdquo;</li>

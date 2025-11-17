@@ -46,7 +46,7 @@ export default function HistoryPage() {
       } else {
         setMsg('No conversations yet.');
       }
-    } catch (e: any) {
+    } catch {
       setMsg('Failed to load history');
     } finally {
       setLoading(false);
@@ -57,7 +57,6 @@ export default function HistoryPage() {
     setItems([]);
     setContinuation(null);
     if (signedIn) loadPage(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, loadPage]);
 
   if (!signedIn) {
@@ -81,7 +80,7 @@ export default function HistoryPage() {
         <div className="page-header__row">
           <div>
             <h1>Conversation Timeline</h1>
-            <p>Revisit diagnoses, costs and sourcing links you shared with HomeRepair AI.</p>
+            <p>Revisit diagnoses, costs and sourcing links you shared with Home Service Assistant.</p>
           </div>
           <div className="page-metrics">
             <div>

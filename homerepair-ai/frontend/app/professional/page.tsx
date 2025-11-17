@@ -84,7 +84,7 @@ export default function ProfessionalPage() {
         setInsurancePolicyInput(data.professional.insurancePolicyNumber || '');
         setInsuranceExpiryInput(data.professional.insuranceExpiry || '');
       }
-    } catch (e: any) {
+    } catch {
       setMsg('Failed to load professional profile');
     } finally {
       setLoading(false);
@@ -93,7 +93,6 @@ export default function ProfessionalPage() {
 
   useEffect(() => {
     if (signedIn) loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, loadProfile]);
 
   function parseCommaList(raw: string): string[] {
@@ -104,7 +103,7 @@ export default function ProfessionalPage() {
       .slice(0, 20);
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
@@ -127,11 +126,15 @@ export default function ProfessionalPage() {
       };
       await post('/api/register-professional', body);
       setMsg('Saved!');
-  } catch (err: any) {
-    setMsg(err?.response?.data?.error || 'Save failed');
-  } finally {
-    setLoading(false);
-  }
+    } catch (err) {
+      const errorMessage =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null;
+      setMsg(errorMessage || 'Save failed');
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (!signedIn) {
