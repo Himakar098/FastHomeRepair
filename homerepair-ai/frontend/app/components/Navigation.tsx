@@ -37,11 +37,12 @@ export default function Navigation() {
   }, []);
 
   const toggle = () => setOpen(prev => !prev);
+  const close = () => setOpen(false);
   const sidebarOpen = desktop || open;
 
   return (
     <>
-      {!desktop && (
+      {!desktop && !sidebarOpen && (
         <>
           <button
             className="sidebar-toggle"
@@ -51,10 +52,6 @@ export default function Navigation() {
           >
             <Menu size={20} />
           </button>
-          <div
-            className={`sidebar-overlay ${open ? 'visible' : ''}`}
-            onClick={() => setOpen(false)}
-          />
         </>
       )}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
@@ -64,7 +61,7 @@ export default function Navigation() {
             <span className="brand-title">Assistant</span>
           </div>
           {!desktop && (
-            <button className="sidebar__close" type="button" onClick={toggle} aria-label="Close navigation">
+            <button className="sidebar__close" type="button" onClick={close} aria-label="Close navigation">
               <X size={18} />
             </button>
           )}
@@ -87,6 +84,9 @@ export default function Navigation() {
           </div>
         </nav>
       </aside>
+      {!desktop && sidebarOpen && (
+        <div className="sidebar-overlay visible" onClick={close} />
+      )}
     </>
   );
 }
