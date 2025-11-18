@@ -21,32 +21,52 @@ const NAV_LINKS = [
 export default function Navigation() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [desktop, setDesktop] = useState(false);
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    const onResize = () => {
+      setDesktop(window.innerWidth >= 1024);
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const toggle = () => setOpen(prev => !prev);
 
   return (
     <>
-      <button
-        className="sidebar-toggle"
-        type="button"
-        onClick={toggle}
-        aria-label="Toggle navigation"
-      >
-        <Menu size={20} />
-      </button>
+      {!desktop && (
+        <>
+          <button
+            className="sidebar-toggle"
+            type="button"
+            onClick={toggle}
+            aria-label="Toggle navigation"
+          >
+            <Menu size={20} />
+          </button>
+          <div
+            className={`sidebar-overlay ${open ? 'visible' : ''}`}
+            onClick={() => setOpen(false)}
+          />
+        </>
+      )}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar__brand">
           <div>
             <p className="eyebrow">Home Service</p>
             <span className="brand-title">Assistant</span>
           </div>
-          <button className="sidebar__close" type="button" onClick={toggle} aria-label="Close navigation">
-            <X size={18} />
-          </button>
+          {!desktop && (
+            <button className="sidebar__close" type="button" onClick={toggle} aria-label="Close navigation">
+              <X size={18} />
+            </button>
+          )}
         </div>
         <nav className="sidebar__nav">
           {NAV_LINKS.map(link => {
@@ -66,10 +86,6 @@ export default function Navigation() {
           <AuthButtons />
         </div>
       </aside>
-      <div
-        className={`sidebar-overlay ${open ? 'visible' : ''}`}
-        onClick={() => setOpen(false)}
-      />
     </>
   );
 }
