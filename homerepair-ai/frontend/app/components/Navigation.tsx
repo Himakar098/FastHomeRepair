@@ -29,7 +29,9 @@ export default function Navigation() {
 
   useEffect(() => {
     const onResize = () => {
-      setDesktop(window.innerWidth >= 1024);
+      const isDesktop = window.innerWidth >= 1024;
+      setDesktop(isDesktop);
+      setOpen(isDesktop);
     };
     onResize();
     window.addEventListener('resize', onResize);
@@ -42,7 +44,7 @@ export default function Navigation() {
 
   return (
     <>
-      {!desktop && !sidebarOpen && (
+      {!sidebarOpen && (
         <>
           <button
             className="sidebar-toggle"
@@ -60,11 +62,9 @@ export default function Navigation() {
             <p className="eyebrow">Home Service</p>
             <span className="brand-title">Assistant</span>
           </div>
-          {!desktop && (
-            <button className="sidebar__close" type="button" onClick={close} aria-label="Close navigation">
-              <X size={18} />
-            </button>
-          )}
+          <button className="sidebar__close" type="button" onClick={close} aria-label="Close navigation">
+            <X size={18} />
+          </button>
         </div>
         <nav className="sidebar__nav">
           {NAV_LINKS.map(link => {
