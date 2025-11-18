@@ -249,6 +249,17 @@ a:hover {
   box-shadow: 0 18px 40px rgba(76, 110, 245, 0.18);
 }
 
+.job-alert {
+  margin: 1rem 2.5rem 0;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+}
+
 .capability-card .card-icon {
   font-size: 1.6rem;
   line-height: 1;
@@ -423,6 +434,30 @@ a:hover {
   margin-top: 0.75rem;
   color: #3c47d3;
   font-weight: 600;
+}
+
+.quote-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.quote-card {
+  border: 1px solid #e6e9fb;
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #f9f9ff;
+}
+
+.quote-card button {
+  margin-top: 0.5rem;
+  background: #0f224d;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
 }
 
 .timeline-list {
@@ -1014,6 +1049,24 @@ a:hover {
   font-weight: 600;
 }
 
+.job-cta {
+  margin-top: 1rem;
+}
+
+.job-cta button {
+  background: #0f224d;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.job-cta button:hover {
+  opacity: 0.9;
+}
+
 .message-timestamp {
   font-size: 0.8rem;
   color: #94a3b8;
@@ -1128,6 +1181,75 @@ a:hover {
 
 .send-button:not(:disabled):hover {
   transform: translateY(-1px);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.modal-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.modal-card input,
+.modal-card textarea {
+  border: 1px solid #dce0fb;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.modal-actions button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-actions button.secondary {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.modal-actions button:not(.secondary) {
+  background: #4c6ef5;
+  color: #fff;
 }
 
 @media (max-width: 900px) {

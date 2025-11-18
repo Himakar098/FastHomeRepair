@@ -13,6 +13,7 @@ import AuthButtons from '../../src/components/AuthButtons';
 
 const NAV_LINKS = [
   { href: '/', label: 'Chat' },
+  { href: '/jobs', label: 'Jobs' },
   { href: '/account', label: 'Account' },
   { href: '/history', label: 'History' },
   { href: '/professional', label: 'Pro Signup' }
@@ -22,6 +23,7 @@ export default function Navigation() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [desktop, setDesktop] = useState(false);
+  const [initialised, setInitialised] = useState(false);
 
   useEffect(() => {
     setOpen(false);
@@ -31,12 +33,19 @@ export default function Navigation() {
     const onResize = () => {
       const isDesktop = window.innerWidth >= 1024;
       setDesktop(isDesktop);
-      setOpen(isDesktop);
+      if (!initialised && isDesktop) {
+        setOpen(true);
+        setInitialised(true);
+        return;
+      }
+      if (!isDesktop) {
+        setOpen(false);
+      }
     };
     onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, []);
+  }, [initialised]);
 
   const toggle = () => setOpen(prev => !prev);
   const close = () => setOpen(false);

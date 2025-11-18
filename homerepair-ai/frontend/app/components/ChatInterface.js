@@ -18,6 +18,7 @@ const formatLocationLabel = (location) => {
   return parts.join(', ') || location.raw || '';
 };
 
+export default ChatInterface;
 const formatServiceAreas = (areas) => {
   if (Array.isArray(areas) && areas.length > 0) return areas.join(', ');
   if (typeof areas === 'string' && areas.trim().length > 0) return areas;
@@ -51,6 +52,16 @@ const ChatInterface = ({ user }) => {
   const messagesEndRef = useRef(null);
   const { getToken, signedIn } = useAccessToken();
   const [authToken, setAuthToken] = useState(null);
+  const [jobModal, setJobModal] = useState({ open: false, source: null });
+  const [jobForm, setJobForm] = useState({
+    title: '',
+    description: '',
+    preferredTime: '',
+    budgetMin: '',
+    budgetMax: ''
+  });
+  const [jobSubmitting, setJobSubmitting] = useState(false);
+  const [jobNotice, setJobNotice] = useState(null);
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:7071') + '/api';
 
@@ -220,6 +231,62 @@ const ChatInterface = ({ user }) => {
     return 'N/A';
   };
 
+  const openJobModal = (message) => {
+    if (!message || !signedIn) return;
+    const defaultTitle = message?.structured?.problemDiagnosis
+      ? `Help with ${message.structured.problemDiagnosis}`
+      : 'Home service request';
+    setJobForm({
+      title: defaultTitle,
+      description: message.content || '',
+      preferredTime: '',
+      budgetMin: message.estimatedCostHint ? message.estimatedCostHint.replace(/[^0-9]/g, '') : '',
+      budgetMax: ''
+    });
+    setJobModal({ open: true, source: message });
+    setJobNotice(null);
+  };
+
+  const submitJob = async () => {
+    if (!signedIn || !jobModal.source) return;
+    setJobSubmitting(true);
+    setJobNotice(null);
+    try {
+      const token = await getToken({ forceLogin: true });
+      if (!token) throw new Error('No auth token');
+      const payload = {
+        title: jobForm.title,
+        description: jobForm.description,
+        summary: jobModal.source.structured?.problemDiagnosis || jobForm.title,
+        conversationId,
+        preferredTime: jobForm.preferredTime,
+        budgetMin: jobForm.budgetMin,
+        budgetMax: jobForm.budgetMax,
+        location: jobModal.source.location || null,
+        products: jobModal.source.products || []
+      };
+      const res = await fetch(`${API_BASE}/jobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to post job');
+      }
+      setJobNotice('Job posted! Visit the Jobs tab to review quotes.');
+      setJobModal({ open: false, source: null });
+    } catch (err) {
+      console.error(err);
+      setJobNotice(err?.message || 'Job post failed');
+    } finally {
+      setJobSubmitting(false);
+    }
+  };
+
   const latestAssistant = [...messages].slice().reverse().find((m) => m.role === 'assistant');
   const lastProducts = Array.isArray(latestAssistant?.products) ? latestAssistant.products.length : 0;
   const lastPros = Array.isArray(latestAssistant?.professionals) ? latestAssistant.professionals.length : 0;
@@ -322,6 +389,11 @@ const ChatInterface = ({ user }) => {
           </article>
         ))}
       </div>
+      {jobNotice && (
+        <div className="job-alert">
+          {jobNotice}
+        </div>
+      )}
 
       <div className="chat-layout">
         <section className="conversation-pane">
@@ -544,6 +616,13 @@ const ChatInterface = ({ user }) => {
                     </div>
                   )}
                 </div>
+                {signedIn && message.role === 'assistant' && !message.isError && (
+                  <div className="job-cta">
+                    <button type="button" onClick={() => openJobModal(message)}>
+                      Post this as a job
+                    </button>
+                  </div>
+                )}
                 <div className="message-timestamp">{new Date(message.timestamp).toLocaleTimeString()}</div>
               </div>
             ))}
@@ -665,8 +744,64 @@ const ChatInterface = ({ user }) => {
           </article>
         </aside>
       </div>
+      {jobModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3>Post this job</h3>
+            <label>
+              <span>Title</span>
+              <input
+                type="text"
+                value={jobForm.title}
+                onChange={(e) => setJobForm((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            </label>
+            <label>
+              <span>Description</span>
+              <textarea
+                rows={4}
+                value={jobForm.description}
+                onChange={(e) => setJobForm((prev) => ({ ...prev, description: e.target.value }))}
+              />
+            </label>
+            <div className="modal-grid">
+              <label>
+                <span>Preferred time</span>
+                <input
+                  type="text"
+                  value={jobForm.preferredTime}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, preferredTime: e.target.value }))}
+                  placeholder="This weekend, ASAP..."
+                />
+              </label>
+              <label>
+                <span>Budget min (AUD)</span>
+                <input
+                  type="number"
+                  value={jobForm.budgetMin}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, budgetMin: e.target.value }))}
+                />
+              </label>
+              <label>
+                <span>Budget max (AUD)</span>
+                <input
+                  type="number"
+                  value={jobForm.budgetMax}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, budgetMax: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={() => setJobModal({ open: false, source: null })}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitJob} disabled={jobSubmitting}>
+                {jobSubmitting ? 'Posting…' : 'Post job'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
-export default ChatInterface;
