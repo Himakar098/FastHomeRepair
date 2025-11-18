@@ -37,6 +37,7 @@ export default function Navigation() {
   }, []);
 
   const toggle = () => setOpen(prev => !prev);
+  const sidebarOpen = desktop || open;
 
   return (
     <>
@@ -56,7 +57,7 @@ export default function Navigation() {
           />
         </>
       )}
-      <aside className={`sidebar ${open ? 'open' : ''}`}>
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar__brand">
           <div>
             <p className="eyebrow">Home Service</p>

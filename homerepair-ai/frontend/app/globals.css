@@ -63,7 +63,7 @@ a:hover {
 
 .app-header p {
   margin: 0 auto;
-  max-width: 40px;
+  max-width: 0px;
   opacity: 0.92;
   font-size: 1.1rem;
 }
@@ -1212,8 +1212,6 @@ a:hover {
   .sidebar {
     transform: translateX(0);
     box-shadow: none;
-    position: sticky;
-    top: 0;
   }
 
   .sidebar__close,
