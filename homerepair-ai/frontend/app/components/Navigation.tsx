@@ -82,10 +82,10 @@ export default function Navigation() {
               </Link>
             );
           })}
+          <div className="sidebar__auth">
+            <AuthButtons />
+          </div>
         </nav>
-        <div className="sidebar__footer">
-          <AuthButtons />
-        </div>
       </aside>
     </>
   );
