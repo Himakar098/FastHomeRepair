@@ -196,6 +196,29 @@ a:hover {
   pointer-events: auto;
 }
 
+.sidebar-handle {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 55;
+  background: #0f224d;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.25);
+  display: none;
+}
+
+.sidebar-handle.closed {
+  left: 1rem;
+}
+
+.sidebar-handle.open {
+  left: 270px;
+}
+
 .chat-interface {
   flex: 1;
   display: flex;
@@ -483,6 +506,15 @@ a:hover {
   margin-bottom: 1.25rem;
 }
 
+.timeline-item button {
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
 .timeline-dot {
   position: absolute;
   left: 6px;
@@ -499,6 +531,11 @@ a:hover {
   border: 1px solid #e6e9fb;
   border-radius: 16px;
   padding: 0.85rem 1rem;
+}
+
+.timeline-item.selected .timeline-content {
+  border-color: #4c6ef5;
+  box-shadow: 0 0 0 2px rgba(76, 110, 245, 0.15);
 }
 
 .timeline-row {
@@ -541,6 +578,44 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+}
+
+.history-detail {
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.history-message {
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #f8f9ff;
+  border: 1px solid #dfe3ff;
+}
+
+.history-message.user {
+  background: #eef2ff;
+}
+
+.history-message__body p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.history-message__time {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: #6b7280;
 }
 
 .eyebrow {
@@ -1348,5 +1423,17 @@ a:hover {
 
   .app-content {
     margin-left: 260px;
+  }
+
+  .sidebar-handle {
+    display: inline-flex;
+  }
+
+  body.sidebar-collapsed .app-content {
+    margin-left: 0;
+  }
+
+  body.sidebar-collapsed .sidebar-handle {
+    left: 1rem;
   }
 }

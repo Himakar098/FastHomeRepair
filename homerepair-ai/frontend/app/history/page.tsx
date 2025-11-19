@@ -17,12 +17,29 @@ type Item = {
   lastRole?: string | null;
 };
 
+type HistoryMessage = {
+  role: string;
+  content: string;
+  timestamp?: string;
+};
+
+type ConversationDetail = {
+  id: string;
+  messages?: HistoryMessage[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export default function HistoryPage() {
   const { signedIn, getToken } = useAccessToken();
   const [items, setItems] = useState<Item[]>([]);
   const [continuation, setContinuation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<ConversationDetail | null>(null);
+  const [conversationLoading, setConversationLoading] = useState(false);
+  const [conversationMsg, setConversationMsg] = useState<string | null>(null);
 
   const loadPage = useCallback(async (nextToken?: string | null) => {
     if (!signedIn) return;
@@ -56,8 +73,45 @@ export default function HistoryPage() {
   useEffect(() => {
     setItems([]);
     setContinuation(null);
+    setSelectedId(null);
+    setConversation(null);
     if (signedIn) loadPage(null);
   }, [signedIn, loadPage]);
+
+  const loadConversation = useCallback(
+    async (conversationId: string) => {
+      setConversationLoading(true);
+      setConversationMsg(null);
+      try {
+        const token = await getToken({ forceLogin: true });
+        if (!token) {
+          throw new Error('No auth token');
+        }
+        const url = new URL(`${API_BASE}/api/get-conversation`);
+        url.searchParams.set('id', conversationId);
+        const res = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          throw new Error('Failed to load conversation');
+        }
+        const data = (await res.json()) as ConversationDetail;
+        setConversation(data);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unable to load conversation';
+        setConversation(null);
+        setConversationMsg(message);
+      } finally {
+        setConversationLoading(false);
+      }
+    },
+    [getToken]
+  );
+
+  const handleSelect = (row: Item) => {
+    setSelectedId(row.id);
+    loadConversation(row.id);
+  };
 
   if (!signedIn) {
     return (
@@ -99,34 +153,62 @@ export default function HistoryPage() {
         </div>
       </header>
 
-      <section className="page-card primary">
-        {items.length === 0 && !loading && !msg && (
-          <p>No conversations yet. Start a chat from the dashboard to build your history.</p>
-        )}
-        <ul className="timeline-list">
-          {items.map(row => (
-            <li key={row.id} className="timeline-item">
-              <div className="timeline-dot" />
-              <div className="timeline-content">
-                <div className="timeline-row">
-                  <span className="history-id">#{row.id}</span>
-                  <span className="history-badge">{row.lastRole || 'assistant'}</span>
-                </div>
-                <p className="timeline-preview">{row.lastPreview || 'No preview available yet.'}</p>
-                <p className="timeline-date">{row.updatedAt || row.createdAt || 'Unknown date'}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {msg && <p className="form-status">{msg}</p>}
-        {continuation && (
-          <div className="form-actions">
-            <button type="button" disabled={loading} onClick={() => loadPage(continuation)}>
-              {loading ? 'Loading…' : 'Load more'}
-            </button>
-          </div>
-        )}
-      </section>
+      <div className="page-grid two-columns">
+        <section className="page-card primary">
+          {items.length === 0 && !loading && !msg && (
+            <p>No conversations yet. Start a chat from the dashboard to build your history.</p>
+          )}
+          <ul className="timeline-list">
+            {items.map(row => (
+              <li key={row.id} className={`timeline-item ${selectedId === row.id ? 'selected' : ''}`}>
+                <div className="timeline-dot" />
+                <button type="button" onClick={() => handleSelect(row)}>
+                  <div className="timeline-content">
+                    <div className="timeline-row">
+                      <span className="history-id">#{row.id}</span>
+                      <span className="history-badge">{row.lastRole || 'assistant'}</span>
+                    </div>
+                    <p className="timeline-preview">{row.lastPreview || 'No preview available yet.'}</p>
+                    <p className="timeline-date">{row.updatedAt || row.createdAt || 'Unknown date'}</p>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {msg && <p className="form-status">{msg}</p>}
+          {continuation && (
+            <div className="form-actions">
+              <button type="button" disabled={loading} onClick={() => loadPage(continuation)}>
+                {loading ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="page-card secondary history-detail">
+          {!selectedId && <p>Select a conversation to review messages.</p>}
+          {conversationLoading && <p>Loading conversation…</p>}
+          {conversationMsg && <p className="form-status">{conversationMsg}</p>}
+          {conversation && (
+            <div className="history-messages">
+              {Array.isArray(conversation.messages) && conversation.messages.length > 0 ? (
+                conversation.messages.map((msg, idx) => (
+                  <div key={`${conversation.id}-${idx}`} className={`history-message ${msg.role}`}>
+                    <div className="history-message__body">
+                      <p>{msg.content}</p>
+                    </div>
+                    <span className="history-message__time">
+                      {msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p>No messages stored for this conversation.</p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

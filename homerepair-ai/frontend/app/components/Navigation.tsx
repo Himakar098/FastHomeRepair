@@ -29,27 +29,38 @@ export default function Navigation() {
     setOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
-    const onResize = () => {
-      const isDesktop = window.innerWidth >= 1024;
-      setDesktop(isDesktop);
-      if (!initialised && isDesktop) {
-        setOpen(true);
-        setInitialised(true);
-        return;
-      }
-      if (!isDesktop) {
-        setOpen(false);
-      }
-    };
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [initialised]);
+useEffect(() => {
+  const onResize = () => {
+    const isDesktop = window.innerWidth >= 1024;
+    setDesktop(isDesktop);
+    if (!initialised) {
+      setOpen(isDesktop);
+      setInitialised(true);
+      return;
+    }
+    if (!isDesktop) {
+      setOpen(false);
+    }
+  };
+  onResize();
+  window.addEventListener('resize', onResize);
+  return () => window.removeEventListener('resize', onResize);
+}, [initialised]);
 
   const toggle = () => setOpen(prev => !prev);
   const close = () => setOpen(false);
   const sidebarOpen = desktop || open;
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const body = document.body;
+    if (desktop && !sidebarOpen) {
+      body.classList.add('sidebar-collapsed');
+    } else {
+      body.classList.remove('sidebar-collapsed');
+    }
+    return () => body.classList.remove('sidebar-collapsed');
+  }, [desktop, sidebarOpen]);
 
   return (
     <>
@@ -95,6 +106,16 @@ export default function Navigation() {
       </aside>
       {!desktop && sidebarOpen && (
         <div className="sidebar-overlay visible" onClick={close} />
+      )}
+      {desktop && (
+        <button
+          className={`sidebar-handle ${sidebarOpen ? 'open' : 'closed'}`}
+          type="button"
+          onClick={toggle}
+          aria-label={sidebarOpen ? 'Hide navigation' : 'Show navigation'}
+        >
+          {sidebarOpen ? '‹' : '›'}
+        </button>
       )}
     </>
   );

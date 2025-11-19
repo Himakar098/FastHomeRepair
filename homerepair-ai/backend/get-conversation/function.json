@@ -1,0 +1,14 @@
+{
+  "scriptFile": "index.js",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": ["GET", "OPTIONS"],
+      "route": "get-conversation"
+    },
+    { "type": "http", "direction": "out", "name": "res" }
+  ]
+}

@@ -199,17 +199,6 @@ export default function AccountPage() {
               />
             </div>
             <div className="form-field">
-              <label htmlFor="defaultUserId">Account ID</label>
-              <input
-                id="defaultUserId"
-                name="defaultUserId"
-                type="text"
-                value={profile.defaultUserId || defaultUserId || ''}
-                readOnly
-              />
-              <small>This identifier ties your conversations and preferences together. Keep it private.</small>
-            </div>
-            <div className="form-field">
               <label htmlFor="contactEmail">Email</label>
               <input
                 id="contactEmail"
@@ -277,16 +266,6 @@ export default function AccountPage() {
                 </div>
               </div>
               <span className="status-chip good">Enabled</span>
-            </li>
-            <li>
-              <div className="status-info">
-                <span className="status-icon">🛡️</span>
-                <div>
-                  <strong>Identity</strong>
-                  <p>Account ID {profile.defaultUserId || defaultUserId || 'pending'} secures your history.</p>
-                </div>
-              </div>
-              <span className="status-chip idle">Private</span>
             </li>
           </ul>
           <div className="status-callout">
