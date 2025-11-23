@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Camera, Loader } from 'lucide-react';
+import { Send, Camera, Loader, X, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -18,7 +18,6 @@ const formatLocationLabel = (location) => {
   return parts.join(', ') || location.raw || '';
 };
 
-export default ChatInterface;
 const formatServiceAreas = (areas) => {
   if (Array.isArray(areas) && areas.length > 0) return areas.join(', ');
   if (typeof areas === 'string' && areas.trim().length > 0) return areas;
@@ -42,7 +41,7 @@ const promptLibrary = [
   'Tenant damage to benchtop and oven, what costs should I expect?'
 ];
 
-const ChatInterface = ({ user }) => {
+export default function ChatInterface({ user }) {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -368,155 +367,209 @@ const ChatInterface = ({ user }) => {
     : 'Once a query is submitted, you will see cost estimates and sourcing suggestions here.';
 
   return (
-    <div className="chat-interface">
+    <div className="space-y-6 text-slate-900">
       {!signedIn && (
-        <div className="auth-banner">
-          <strong>Tip:</strong> Sign in to unlock live pricing, professional referrals and photo analysis.
+        <div className="rounded-3xl border border-dashed border-[#0D47A1]/40 bg-[#E8F1FF] px-6 py-4 text-sm text-[#0D47A1] shadow-inner">
+          <strong className="font-semibold">Tip:</strong> Sign in to unlock live pricing, professional referrals, and photo
+          analysis.
         </div>
       )}
 
-      <div className="capability-grid">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {capabilityCards.map((card) => (
-          <article key={card.title} className={`capability-card ${card.state}`}>
-            <div className="card-icon">{card.icon}</div>
-            <div>
-              <div className="card-header">
-                <h3>{card.title}</h3>
-                <span className="card-badge">{card.badge}</span>
+          <article
+            key={card.title}
+            className={`rounded-2xl border p-5 shadow-lg transition ${
+              card.state === 'muted'
+                ? 'border-slate-200 bg-white/60 opacity-70'
+                : 'border-white/80 bg-white shadow-slate-200/70'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0D47A1]/10 text-xl">
+                {card.icon}
               </div>
-              <p>{card.description}</p>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+                  <span className="rounded-full border border-slate-200 px-3 py-1 text-[0.65rem] font-semibold text-slate-500">
+                    {card.badge}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-500">{card.description}</p>
+              </div>
             </div>
           </article>
         ))}
       </div>
+
       {jobNotice && (
-        <div className="job-alert">
+        <div className="rounded-2xl border-l-4 border-emerald-500 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 shadow">
           {jobNotice}
         </div>
       )}
 
-      <div className="chat-layout">
-        <section className="conversation-pane">
-          <div className="chat-messages">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+        <section className="flex min-h-[32rem] flex-col rounded-3xl border border-slate-100 bg-white shadow-2xl shadow-slate-200/80">
+          <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-6 py-5">
+            <div>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.5em] text-slate-500">Conversation</p>
+              <p className="text-lg font-semibold text-slate-900">Home Service Copilot</p>
+            </div>
+            <div className="ml-auto flex flex-wrap gap-3 text-[0.7rem] font-semibold uppercase tracking-[0.3em] text-slate-500">
+              <span className="rounded-full bg-slate-50 px-3 py-1">Products {lastProducts}</span>
+              <span className="rounded-full bg-slate-50 px-3 py-1">Pros {lastPros}</span>
+              <span className="rounded-full bg-slate-50 px-3 py-1">Live {lastLive}</span>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
             {messages.length === 0 && (
-              <div className="welcome-message">
-                <h2>Welcome to Home Service Assistant</h2>
-                <p>
-                  Describe your property issue or upload photos, and I&rsquo;ll return a plan with products,
-                  pricing and when to escalate to a professional.
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-[#0D47A1]">
+                  <Sparkles className="h-4 w-4" /> Welcome
+                </div>
+                <h2 className="mt-4 text-2xl font-semibold text-slate-900">Welcome to Home Service Assistant</h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  Describe your property issue or upload photos, and I’ll return a plan with products, pricing, and when to
+                  escalate to a professional.
                 </p>
-                <div className="example-questions">
-                  <h3>Try asking:</h3>
-                  <ul>
-                    <li>&ldquo;My oven has stubborn stains, how can I clean it?&rdquo;</li>
-                    <li>&ldquo;There&rsquo;s a small hole in my wall, can I fix it myself?&rdquo;</li>
-                    <li>&ldquo;I want to move my furniture. Whom should I hire?&rdquo;</li>
+                <div className="mt-6 text-left">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">Try asking</h3>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                    <li>“My oven has stubborn stains, how can I clean it?”</li>
+                    <li>“There’s a small hole in my wall, can I fix it myself?”</li>
+                    <li>“I want to move my furniture. Whom should I hire?”</li>
                   </ul>
                 </div>
               </div>
             )}
 
-            {messages.map((message, index) => (
-              <div key={index} className={`message ${message.role}`}>
-                <div className="message-content">
+            {messages.map((message, index) => {
+              const isAssistant = message.role === 'assistant';
+              return (
+                <div
+                  key={index}
+                  className={`rounded-2xl border p-5 shadow-sm ${
+                    isAssistant ? 'border-[#0D47A1]/15 bg-[#0D47A1]/5' : 'border-slate-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-slate-400">
+                    <span>{isAssistant ? 'Assistant' : 'You'}</span>
+                    <span className="tracking-normal text-[0.65rem] normal-case text-slate-400">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+
                   {message.images && message.images.length > 0 && (
-                    <div className="message-images">
+                    <div className="mt-4 flex flex-wrap gap-3">
                       {message.images.map((img, imgIndex) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img key={imgIndex} src={img.dataUrl} alt="User upload" className="message-image" />
+                        <div key={imgIndex} className="overflow-hidden rounded-2xl border border-slate-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img.dataUrl} alt="User upload" className="h-20 w-20 object-cover" />
+                        </div>
                       ))}
                     </div>
                   )}
-                  <div className="message-text">
+
+                  <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       linkTarget="_blank"
                       components={{
                         a: (anchorProps) => (
-                          <a {...anchorProps} rel="noopener noreferrer" target="_blank" />
+                          <a {...anchorProps} rel="noopener noreferrer" target="_blank" className="text-[#0D47A1] underline" />
                         )
                       }}
                     >
                       {message.content || ''}
                     </ReactMarkdown>
                   </div>
+
                   {(message.difficulty || message.estimatedCostHint || formatLocationLabel(message.location)) && (
-                    <div className="ai-meta">
+                    <div className="mt-4 flex flex-wrap gap-3 text-xs font-medium text-slate-600">
                       {message.difficulty && (
-                        <div className="meta-pill">
-                          <span className="pill-label">Difficulty</span>
-                          <span className="pill-value">{message.difficulty}</span>
-                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1">
+                          Difficulty: {message.difficulty}
+                        </span>
                       )}
                       {message.estimatedCostHint && (
-                        <div className="meta-pill">
-                          <span className="pill-label">Est. cost</span>
-                          <span className="pill-value">{message.estimatedCostHint}</span>
-                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1">
+                          Est. cost: {message.estimatedCostHint}
+                        </span>
                       )}
                       {formatLocationLabel(message.location) && (
-                        <div className="location-chip">Based on {formatLocationLabel(message.location)}</div>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1">
+                          Based on {formatLocationLabel(message.location)}
+                        </span>
                       )}
                     </div>
                   )}
+
                   {message.featuresLimited && (
-                    <div className="limited-note">
-                      Sign in to unlock product recommendations, professional referrals, and detailed image
-                      analysis.
+                    <div className="mt-4 rounded-2xl border border-dashed border-[#0D47A1]/40 bg-[#E8F1FF] px-4 py-3 text-xs text-[#0D47A1]">
+                      Sign in to unlock product recommendations, professional referrals, and detailed image analysis.
                     </div>
                   )}
+
                   {message.imageAnalysis && (
-                    <div className="insight-card">
-                      <div className="section-heading">
-                        <h4>Image insights</h4>
-                        <span className="accent-pill">Computer vision</span>
+                    <div className="mt-5 rounded-2xl border border-[#0D47A1]/15 bg-white/80 p-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Image insights</h4>
+                        <span className="rounded-full bg-[#0D47A1]/10 px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#0D47A1]">
+                          Vision
+                        </span>
                       </div>
                       {message.imageAnalysis.description && (
-                        <p className="insight-text">{message.imageAnalysis.description}</p>
+                        <p className="mt-2 text-sm text-slate-600">{message.imageAnalysis.description}</p>
                       )}
-                      {Array.isArray(message.imageAnalysis.usedFeatures) &&
-                        message.imageAnalysis.usedFeatures.length > 0 && (
-                          <div className="pill-row">
-                            {message.imageAnalysis.usedFeatures.map((feature, idx) => (
-                              <span key={`feature-${idx}`} className="feature-pill">
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                      {Array.isArray(message.imageAnalysis.usedFeatures) && message.imageAnalysis.usedFeatures.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {message.imageAnalysis.usedFeatures.map((feature, idx) => (
+                            <span key={`feature-${idx}`} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {Array.isArray(message.imageAnalysis.repairSuggestions) &&
                         message.imageAnalysis.repairSuggestions.length > 0 && (
-                          <ul className="insight-list">
+                          <ul className="mt-3 space-y-2 text-sm text-slate-600">
                             {message.imageAnalysis.repairSuggestions.map((suggestion, idx) => (
-                              <li key={`suggestion-${idx}`}>
-                                <div>
-                                  <strong>{suggestion.issue}</strong>
+                              <li key={`suggestion-${idx}`} className="rounded-xl border border-slate-100 px-3 py-2">
+                                <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
+                                  <span>{suggestion.issue}</span>
                                   {suggestion.urgency && (
-                                    <span className="urgency-pill">{suggestion.urgency}</span>
+                                    <span className="text-xs uppercase tracking-[0.3em] text-[#0D47A1]">
+                                      {suggestion.urgency}
+                                    </span>
                                   )}
                                 </div>
-                                <p>{suggestion.action}</p>
+                                <p className="mt-1 text-sm text-slate-600">{suggestion.action}</p>
                               </li>
                             ))}
                           </ul>
                         )}
                     </div>
                   )}
+
                   {message.products && message.products.length > 0 && (
-                    <div className="recommended-products result-section">
-                      <div className="section-heading">
-                        <h4>Curated products</h4>
-                        <span className="accent-pill">Catalogue</span>
+                    <div className="mt-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Curated products</h4>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-[0.65rem] font-semibold text-slate-500">
+                          Catalogue
+                        </span>
                       </div>
-                      <div className="result-grid">
+                      <div className="grid gap-3 sm:grid-cols-2">
                         {message.products.map((product, prodIndex) => (
-                          <div key={`product-${prodIndex}`} className="product-card">
-                            <h5>{product.name}</h5>
-                            <p>Price: {renderPrice(product)}</p>
-                            {product.supplier && <p>Available at: {product.supplier}</p>}
-                            {product.location && <p>Store: {product.location}</p>}
+                          <div key={`product-${prodIndex}`} className="rounded-2xl border border-slate-100 p-4 text-sm text-slate-600">
+                            <p className="text-base font-semibold text-slate-900">{product.name}</p>
+                            <p className="mt-1 text-sm">Price: {renderPrice(product)}</p>
+                            {product.supplier && <p className="mt-1">Available at: {product.supplier}</p>}
+                            {product.location && <p className="mt-1">Store: {product.location}</p>}
                             {product.link && (
-                              <a href={product.link} target="_blank" rel="noopener noreferrer">
+                              <a href={product.link} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-sm font-semibold text-[#0D47A1]">
                                 View product
                               </a>
                             )}
@@ -525,19 +578,22 @@ const ChatInterface = ({ user }) => {
                       </div>
                     </div>
                   )}
+
                   {message.realtimeProducts && message.realtimeProducts.length > 0 && (
-                    <div className="recommended-products result-section">
-                      <div className="section-heading">
-                        <h4>Live web product picks</h4>
-                        <span className="accent-pill live">Realtime</span>
+                    <div className="mt-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Live web product picks</h4>
+                        <span className="rounded-full bg-[#0D47A1]/10 px-3 py-1 text-[0.65rem] font-semibold text-[#0D47A1]">
+                          Realtime
+                        </span>
                       </div>
-                      <div className="result-grid">
+                      <div className="grid gap-3 sm:grid-cols-2">
                         {message.realtimeProducts.map((product, prodIndex) => (
-                          <div key={`realtime-product-${prodIndex}`} className="product-card live">
-                            <h5>{product.name}</h5>
-                            <p>{product.supplier || 'Live retailer'}</p>
+                          <div key={`realtime-product-${prodIndex}`} className="rounded-2xl border border-[#0D47A1]/15 bg-white p-4 text-sm text-slate-600">
+                            <p className="text-base font-semibold text-slate-900">{product.name}</p>
+                            <p className="mt-1 text-sm">{product.supplier || 'Live retailer'}</p>
                             {product.link && (
-                              <a href={product.link} target="_blank" rel="noopener noreferrer">
+                              <a href={product.link} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-sm font-semibold text-[#0D47A1]">
                                 Open listing
                               </a>
                             )}
@@ -546,24 +602,25 @@ const ChatInterface = ({ user }) => {
                       </div>
                     </div>
                   )}
+
                   {message.professionals && message.professionals.length > 0 && (
-                    <div className="recommended-professionals result-section">
-                      <div className="section-heading">
-                        <h4>Vetted professionals</h4>
-                        <span className="accent-pill">Network</span>
+                    <div className="mt-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Vetted professionals</h4>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-[0.65rem] font-semibold text-slate-500">
+                          Network
+                        </span>
                       </div>
-                      <div className="result-grid">
+                      <div className="grid gap-3 sm:grid-cols-2">
                         {message.professionals.map((pro, proIndex) => (
-                          <div key={`professional-${proIndex}`} className="professional-card">
-                            <h5>{pro.name}</h5>
-                            {pro.services && pro.services.length > 0 && (
-                              <p>Services: {pro.services.join(', ')}</p>
-                            )}
-                            <p>Areas: {formatServiceAreas(pro.serviceAreas)}</p>
-                            {pro.rating != null && <p>Rating: {pro.rating}/5</p>}
-                            {pro.phone && <p>Phone: {pro.phone}</p>}
+                          <div key={`professional-${proIndex}`} className="rounded-2xl border border-slate-100 p-4 text-sm text-slate-600">
+                            <p className="text-base font-semibold text-slate-900">{pro.name}</p>
+                            {pro.services && pro.services.length > 0 && <p className="mt-1">Services: {pro.services.join(', ')}</p>}
+                            <p className="mt-1">Areas: {formatServiceAreas(pro.serviceAreas)}</p>
+                            {pro.rating != null && <p className="mt-1">Rating: {pro.rating}/5</p>}
+                            {pro.phone && <p className="mt-1">Phone: {pro.phone}</p>}
                             {pro.website && (
-                              <a href={pro.website} target="_blank" rel="noopener noreferrer">
+                              <a href={pro.website} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-sm font-semibold text-[#0D47A1]">
                                 {formatWebsiteLabel(pro.website)}
                               </a>
                             )}
@@ -572,19 +629,22 @@ const ChatInterface = ({ user }) => {
                       </div>
                     </div>
                   )}
+
                   {message.realtimeProfessionals && message.realtimeProfessionals.length > 0 && (
-                    <div className="recommended-professionals result-section">
-                      <div className="section-heading">
-                        <h4>Live web professionals</h4>
-                        <span className="accent-pill live">Realtime</span>
+                    <div className="mt-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Live web professionals</h4>
+                        <span className="rounded-full bg-[#0D47A1]/10 px-3 py-1 text-[0.65rem] font-semibold text-[#0D47A1]">
+                          Realtime
+                        </span>
                       </div>
-                      <div className="result-grid">
+                      <div className="grid gap-3 sm:grid-cols-2">
                         {message.realtimeProfessionals.map((pro, proIndex) => (
-                          <div key={`realtime-professional-${proIndex}`} className="professional-card live">
-                            <h5>{pro.name}</h5>
-                            <p>Areas: {formatServiceAreas(pro.serviceAreas)}</p>
+                          <div key={`realtime-professional-${proIndex}`} className="rounded-2xl border border-[#0D47A1]/15 bg-white p-4 text-sm text-slate-600">
+                            <p className="text-base font-semibold text-slate-900">{pro.name}</p>
+                            <p className="mt-1">Areas: {formatServiceAreas(pro.serviceAreas)}</p>
                             {pro.website && (
-                              <a href={pro.website} target="_blank" rel="noopener noreferrer">
+                              <a href={pro.website} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-sm font-semibold text-[#0D47A1]">
                                 {formatWebsiteLabel(pro.website)}
                               </a>
                             )}
@@ -593,20 +653,25 @@ const ChatInterface = ({ user }) => {
                       </div>
                     </div>
                   )}
+
                   {message.realtimeResults && message.realtimeResults.length > 0 && (
-                    <div className="live-results">
-                      <div className="section-heading">
-                        <h4>Live research</h4>
-                        <span className="accent-pill live">Realtime</span>
+                    <div className="mt-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Live research</h4>
+                        <span className="rounded-full bg-[#0D47A1]/10 px-3 py-1 text-[0.65rem] font-semibold text-[#0D47A1]">
+                          Realtime
+                        </span>
                       </div>
-                      <div className="live-result-grid">
+                      <div className="grid gap-3 sm:grid-cols-2">
                         {message.realtimeResults.map((result, resultIdx) => (
-                          <article key={`live-result-${resultIdx}`} className="live-result-card">
-                            <span className="result-type">{(result.type || 'general').toUpperCase()}</span>
-                            <h5>{result.title}</h5>
-                            {result.snippet && <p className="result-snippet">{result.snippet}</p>}
+                          <article key={`live-result-${resultIdx}`} className="rounded-2xl border border-[#0D47A1]/15 bg-white p-4">
+                            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#0D47A1]">
+                              {(result.type || 'general').toUpperCase()}
+                            </span>
+                            <h5 className="mt-2 text-base font-semibold text-slate-900">{result.title}</h5>
+                            {result.snippet && <p className="mt-1 text-sm text-slate-600">{result.snippet}</p>}
                             {result.link && (
-                              <a href={result.link} target="_blank" rel="noopener noreferrer">
+                              <a href={result.link} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-sm font-semibold text-[#0D47A1]">
                                 Visit source
                               </a>
                             )}
@@ -615,21 +680,26 @@ const ChatInterface = ({ user }) => {
                       </div>
                     </div>
                   )}
+
+                  {signedIn && isAssistant && !message.isError && (
+                    <div className="mt-5">
+                      <button
+                        type="button"
+                        onClick={() => openJobModal(message)}
+                        className="inline-flex items-center justify-center rounded-full border border-[#0D47A1] px-4 py-2 text-sm font-semibold text-[#0D47A1] transition hover:bg-[#0D47A1] hover:text-white"
+                      >
+                        Post this as a job
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {signedIn && message.role === 'assistant' && !message.isError && (
-                  <div className="job-cta">
-                    <button type="button" onClick={() => openJobModal(message)}>
-                      Post this as a job
-                    </button>
-                  </div>
-                )}
-                <div className="message-timestamp">{new Date(message.timestamp).toLocaleTimeString()}</div>
-              </div>
-            ))}
+              );
+            })}
+
             {isLoading && (
-              <div className="message assistant loading">
-                <div className="message-content">
-                  <Loader className="spinner" />
+              <div className="rounded-2xl border border-slate-100 bg-white p-5 text-sm text-slate-600">
+                <div className="flex items-center gap-3">
+                  <Loader className="h-4 w-4 animate-spin text-[#0D47A1]" />
                   <span>Analyzing your problem...</span>
                 </div>
               </div>
@@ -637,165 +707,214 @@ const ChatInterface = ({ user }) => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="chat-input-area">
+          <div className="border-t border-slate-100 bg-slate-50/60 px-6 py-4">
             {selectedImages.length > 0 && (
-              <div className="selected-images">
+              <div className="mb-3 flex flex-wrap gap-3">
                 {selectedImages.map((img, index) => (
-                  <div key={index} className="selected-image">
+                  <div key={index} className="relative h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-white">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={img.dataUrl} alt={img.name} />
-                    <button onClick={() => removeImage(index)} className="remove-image">
-                      ×
+                    <img src={img.dataUrl} alt={img.name} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow"
+                      aria-label="Remove image"
+                    >
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
               </div>
             )}
-            <div className="input-controls">
-              <button
-                className="image-upload-btn"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading || !signedIn}
-                title={signedIn ? 'Attach photos' : 'Sign in to upload images'}
-              >
-                <Camera size={20} />
-              </button>
-              <textarea
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Describe your home repair problem..."
-                disabled={isLoading}
-                rows={1}
-                className="message-input"
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={isLoading || (!inputMessage.trim() && selectedImages.length === 0)}
-                className="send-button"
-              >
-                <Send size={20} />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageUpload}
-                style={{ display: 'none' }}
-              />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1">
+                <textarea
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Describe your home repair problem..."
+                  disabled={isLoading}
+                  rows={3}
+                  className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0D47A1]"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:text-[#0D47A1] disabled:opacity-50"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || !signedIn}
+                  title={signedIn ? 'Attach photos' : 'Sign in to upload images'}
+                >
+                  <Camera className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendMessage}
+                  disabled={isLoading || (!inputMessage.trim() && selectedImages.length === 0)}
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-[#0D47A1] px-6 text-sm font-semibold text-white shadow-lg shadow-[#0D47A1]/30 transition hover:-translate-y-0.5 disabled:opacity-50"
+                >
+                  {isLoading ? <Loader className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+              className="hidden"
+            />
           </div>
         </section>
 
-        <aside className="insight-panel">
-          <article className="insight-panel__card highlight">
-            <div className="panel-header">
-              <span className="panel-chip">Latest insight</span>
-              {lastCost && <span className="panel-chip cost">{lastCost}</span>}
+        <aside className="space-y-5">
+          <article className="rounded-3xl border border-[#0D47A1]/20 bg-white p-6 shadow-xl shadow-[#0D47A1]/10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-[0.4em] text-[#0D47A1]/70">Latest insight</span>
+              {lastCost && (
+                <span className="rounded-full bg-[#0D47A1]/10 px-3 py-1 text-xs font-semibold text-[#0D47A1]">{lastCost}</span>
+              )}
             </div>
-            <h3>{lastDifficulty}</h3>
-            <p>{latestSummary}</p>
-            <div className="insight-metrics">
-              <div>
-                <span className="metric-value">{lastProducts}</span>
-                <span className="metric-label">Products</span>
+            <h3 className="mt-3 text-2xl font-semibold text-slate-900">{lastDifficulty}</h3>
+            <p className="mt-2 text-sm text-slate-600">{latestSummary}</p>
+            <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-2xl border border-slate-100 p-3">
+                <p className="text-xl font-semibold text-slate-900">{lastProducts}</p>
+                <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Products</p>
               </div>
-              <div>
-                <span className="metric-value">{lastPros}</span>
-                <span className="metric-label">Pros</span>
+              <div className="rounded-2xl border border-slate-100 p-3">
+                <p className="text-xl font-semibold text-slate-900">{lastPros}</p>
+                <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Pros</p>
               </div>
-              <div>
-                <span className="metric-value">{lastLive}</span>
-                <span className="metric-label">Live hits</span>
+              <div className="rounded-2xl border border-slate-100 p-3">
+                <p className="text-xl font-semibold text-slate-900">{lastLive}</p>
+                <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Live</p>
               </div>
             </div>
           </article>
 
-          <article className="insight-panel__card">
-            <h4>System status</h4>
-            <ul className="status-list">
+          <article className="rounded-3xl border border-slate-100 bg-white p-6 shadow">
+            <h4 className="text-sm font-semibold text-slate-900">System status</h4>
+            <ul className="mt-4 space-y-3">
               {statusTiles.map((tile) => (
-                <li key={tile.label}>
-                  <div className="status-info">
-                    <span className="status-icon">{tile.icon}</span>
+                <li key={tile.label} className="flex items-start justify-between rounded-2xl border border-slate-100 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl">{tile.icon}</span>
                     <div>
-                      <strong>{tile.label}</strong>
-                      <p>{tile.description}</p>
+                      <p className="text-sm font-semibold text-slate-900">{tile.label}</p>
+                      <p className="text-xs text-slate-500">{tile.description}</p>
                     </div>
                   </div>
-                  <span className={`status-chip ${tile.state}`}>{tile.badge}</span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      tile.state === 'good' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {tile.badge}
+                  </span>
                 </li>
               ))}
             </ul>
           </article>
 
-          <article className="insight-panel__card">
-            <h4>Suggested prompts</h4>
-            <ul className="prompt-list">
+          <article className="rounded-3xl border border-slate-100 bg-white p-6 shadow">
+            <h4 className="text-sm font-semibold text-slate-900">Suggested prompts</h4>
+            <div className="mt-4 space-y-3">
               {promptLibrary.map((prompt) => (
-                <li key={prompt}>
-                  <button type="button" onClick={() => setInputMessage(prompt)}>
-                    {prompt}
-                  </button>
-                </li>
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => setInputMessage(prompt)}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-600 transition hover:border-[#0D47A1] hover:text-[#0D47A1]"
+                >
+                  {prompt}
+                </button>
               ))}
-            </ul>
+            </div>
           </article>
         </aside>
       </div>
+
       {jobModal.open && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <h3>Post this job</h3>
-            <label>
-              <span>Title</span>
-              <input
-                type="text"
-                value={jobForm.title}
-                onChange={(e) => setJobForm((prev) => ({ ...prev, title: e.target.value }))}
-              />
-            </label>
-            <label>
-              <span>Description</span>
-              <textarea
-                rows={4}
-                value={jobForm.description}
-                onChange={(e) => setJobForm((prev) => ({ ...prev, description: e.target.value }))}
-              />
-            </label>
-            <div className="modal-grid">
-              <label>
-                <span>Preferred time</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Post this job</h3>
+              <button
+                type="button"
+                onClick={() => setJobModal({ open: false, source: null })}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600"
+                aria-label="Close job modal"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-4 space-y-4">
+              <label className="block text-sm font-semibold text-slate-700">
+                <span>Title</span>
                 <input
                   type="text"
-                  value={jobForm.preferredTime}
-                  onChange={(e) => setJobForm((prev) => ({ ...prev, preferredTime: e.target.value }))}
-                  placeholder="This weekend, ASAP..."
+                  value={jobForm.title}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D47A1]"
                 />
               </label>
-              <label>
-                <span>Budget min (AUD)</span>
-                <input
-                  type="number"
-                  value={jobForm.budgetMin}
-                  onChange={(e) => setJobForm((prev) => ({ ...prev, budgetMin: e.target.value }))}
+              <label className="block text-sm font-semibold text-slate-700">
+                <span>Description</span>
+                <textarea
+                  rows={4}
+                  value={jobForm.description}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, description: e.target.value }))}
+                  className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D47A1]"
                 />
               </label>
-              <label>
-                <span>Budget max (AUD)</span>
-                <input
-                  type="number"
-                  value={jobForm.budgetMax}
-                  onChange={(e) => setJobForm((prev) => ({ ...prev, budgetMax: e.target.value }))}
-                />
-              </label>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="block text-sm font-semibold text-slate-700">
+                  <span>Preferred time</span>
+                  <input
+                    type="text"
+                    value={jobForm.preferredTime}
+                    onChange={(e) => setJobForm((prev) => ({ ...prev, preferredTime: e.target.value }))}
+                    placeholder="This weekend, ASAP..."
+                    className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D47A1]"
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-slate-700">
+                  <span>Budget min (AUD)</span>
+                  <input
+                    type="number"
+                    value={jobForm.budgetMin}
+                    onChange={(e) => setJobForm((prev) => ({ ...prev, budgetMin: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D47A1]"
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-slate-700">
+                  <span>Budget max (AUD)</span>
+                  <input
+                    type="number"
+                    value={jobForm.budgetMax}
+                    onChange={(e) => setJobForm((prev) => ({ ...prev, budgetMax: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D47A1]"
+                  />
+                </label>
+              </div>
             </div>
-            <div className="modal-actions">
-              <button type="button" className="secondary" onClick={() => setJobModal({ open: false, source: null })}>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-600"
+                onClick={() => setJobModal({ open: false, source: null })}
+              >
                 Cancel
               </button>
-              <button type="button" onClick={submitJob} disabled={jobSubmitting}>
+              <button
+                type="button"
+                onClick={submitJob}
+                disabled={jobSubmitting}
+                className="inline-flex items-center justify-center rounded-full bg-[#0D47A1] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
                 {jobSubmitting ? 'Posting…' : 'Post job'}
               </button>
             </div>
@@ -804,4 +923,4 @@ const ChatInterface = ({ user }) => {
       )}
     </div>
   );
-};
+}
